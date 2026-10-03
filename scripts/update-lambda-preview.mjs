@@ -1,0 +1,11 @@
+import { execFileSync } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
+const deployment = JSON.parse(await readFile('deployment.local.json', 'utf8'));
+if (deployment.mode !== 'lambda-preview') throw new Error('This command is for the Lambda preview only');
+const aws = args => execFileSync('aws', [...args, '--profile', deployment.profile, '--region', deployment.region, '--output', 'json', '--no-cli-pager'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+const plan = JSON.parse(aws(['freetier', 'get-account-plan-state']));
+if (plan.accountPlanType !== 'FREE' || plan.accountPlanStatus !== 'ACTIVE') throw new Error('Cost review required; no paid-account deployment is automatic.');
+const config = JSON.parse(await readFile('backend/event.json', 'utf8'));
+if (config.registrationEnabled) throw new Error('Real registration cannot be enabled through this preview update command.');
+const update = JSON.parse(aws(['lambda', 'update-function-code', '--function-name', deployment.ApiFunction, '--zip-file', 'fileb://output/lambda.zip']));
+console.log(JSON.stringify({ name: update.FunctionName, status: update.LastUpdateStatus, size: update.CodeSize }));

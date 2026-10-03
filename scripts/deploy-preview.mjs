@@ -1,0 +1,30 @@
+import { execFileSync } from 'node:child_process';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+const profile = process.env.AWS_PROFILE || 'default', region = 'eu-central-1', stack = 'etalon-conference';
+const aws = args => execFileSync('aws', [...args, '--profile', profile, '--region', region, '--output', 'json', '--no-cli-pager'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+const identity = JSON.parse(aws(['sts', 'get-caller-identity']));
+if (identity.Account !== '674948790853' && !process.env.ETALON_TARGET_ACCOUNT) throw new Error('Set ETALON_TARGET_ACCOUNT after reviewing the destination account.');
+if (process.env.ETALON_TARGET_ACCOUNT && identity.Account !== process.env.ETALON_TARGET_ACCOUNT) throw new Error('Unexpected target account');
+const plan = JSON.parse(aws(['freetier', 'get-account-plan-state']));
+if (plan.accountPlanType !== 'FREE' || plan.accountPlanStatus !== 'ACTIVE' || Date.parse(plan.accountPlanExpirationDate) < Date.now() + 86400000) throw new Error('This preview script only uses an active FREE account. It never switches to a paid account. Review costs separately for production.');
+console.log(`FREE account credits: ${plan.accountPlanRemainingCredits.amount} USD; expiration ${plan.accountPlanExpirationDate}.`);
+const bucket = `etalon-code-${identity.Account}-${region}`;
+try { aws(['s3api', 'head-bucket', '--bucket', bucket]); }
+catch { aws(['s3api', 'create-bucket', '--bucket', bucket, '--create-bucket-configuration', `LocationConstraint=${region}`]); }
+aws(['s3api', 'put-public-access-block', '--bucket', bucket, '--public-access-block-configuration', 'BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true']);
+const zip = await readFile('output/lambda.zip'); const key = `api-${createHash('sha256').update(zip).digest('hex').slice(0,16)}.zip`;
+aws(['s3api', 'put-object', '--bucket', bucket, '--key', key, '--body', 'output/lambda.zip', '--server-side-encryption', 'AES256']);
+const template = JSON.parse(await readFile('infra/template.json', 'utf8'));
+const html = await readFile('site/index.html', 'utf8');
+const schema = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1];
+const hash = createHash('sha256').update(schema).digest('base64');
+const csp = template.Resources.SecurityHeaders.Properties.ResponseHeadersPolicyConfig.SecurityHeadersConfig.ContentSecurityPolicy;
+csp.ContentSecurityPolicy['Fn::Sub'] = csp.ContentSecurityPolicy['Fn::Sub'].replace('U0pVgGcoPLACEHOLDER', hash);
+await mkdir('output', { recursive: true }); await writeFile('output/template.json', JSON.stringify(template));
+aws(['cloudformation', 'validate-template', '--template-body', 'file://output/template.json']);
+console.log(aws(['cloudformation', 'deploy', '--stack-name', stack, '--template-file', 'output/template.json', '--parameter-overrides', `CodeBucket=${bucket}`, `CodeKey=${key}`, 'SiteUrl=https://etaloncare.com', '--capabilities', 'CAPABILITY_NAMED_IAM', '--no-fail-on-empty-changeset']));
+const details = JSON.parse(aws(['cloudformation', 'describe-stacks', '--stack-name', stack]));
+const outputs = Object.fromEntries(details.Stacks[0].Outputs.map(o => [o.OutputKey, o.OutputValue]));
+await writeFile('deployment.local.json', JSON.stringify({ ...outputs, profile, region, stack, creditExpiration: plan.accountPlanExpirationDate }, null, 2));
+console.log(JSON.stringify(outputs, null, 2));

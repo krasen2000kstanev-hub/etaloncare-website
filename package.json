@@ -1,0 +1,20 @@
+{
+  "name": "etalon-conference",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "test:ui": "node tests/browser.mjs && node tests/checkout.mjs",
+    "test:seo": "node tests/seo.mjs",
+    "test": "node --test tests/backend.test.mjs && node tests/seo.mjs",
+    "dev:api": "node backend/local.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "3.1146.0",
+    "@aws-sdk/lib-dynamodb": "3.1146.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "playwright": "^1.63.0"
+  }
+}

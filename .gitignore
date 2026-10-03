@@ -1,0 +1,10 @@
+node_modules/
+tmp/
+output/
+__pycache__/
+*.pyc
+*.sqlite*
+.env*
+!.env.example
+deployment.local.json
+site/config.local.js

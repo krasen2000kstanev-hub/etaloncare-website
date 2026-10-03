@@ -1,0 +1,24 @@
+{
+  "name": "Науката за ноктите",
+  "registrationOpens": "2026-10-31T22:00:00Z",
+  "registrationCloses": "2027-03-20T22:00:00Z",
+  "registrationEnabled": false,
+  "seatPlanApproved": false,
+  "termsApproved": false,
+  "termsVersion": "draft-2026-10-03",
+  "planDescription": "Примерна схема: 10 реда по 10 места; премиум позициите не са потвърдени.",
+  "currency": "EUR",
+  "prices": { "standard": 600, "premium": 700 },
+  "rows": [
+    { "label": "A", "count": 10, "tier": "premium" },
+    { "label": "B", "count": 10, "tier": "premium" },
+    { "label": "C", "count": 10, "tier": "standard" },
+    { "label": "D", "count": 10, "tier": "standard" },
+    { "label": "E", "count": 10, "tier": "standard" },
+    { "label": "F", "count": 10, "tier": "standard" },
+    { "label": "G", "count": 10, "tier": "standard" },
+    { "label": "H", "count": 10, "tier": "standard" },
+    { "label": "I", "count": 10, "tier": "standard" },
+    { "label": "J", "count": 10, "tier": "standard" }
+  ]
+}

@@ -1,0 +1,13 @@
+import { execFileSync } from 'node:child_process';
+import { readFile, writeFile } from 'node:fs/promises';
+const deployment = JSON.parse(await readFile('deployment.local.json', 'utf8'));
+const aws = args => execFileSync('aws', [...args, '--profile', deployment.profile, '--region', deployment.region, '--no-cli-pager'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+const plan = JSON.parse(aws(['freetier', 'get-account-plan-state', '--output', 'json']));
+if (plan.accountPlanType !== 'FREE' || plan.accountPlanStatus !== 'ACTIVE') throw new Error('Cost review required: this script never publishes on a paid account automatically.');
+const cors = { AllowOrigins: ['https://etaloncare.com', deployment.PreviewUrl], AllowMethods: ['GET', 'POST'], AllowHeaders: ['content-type', 'authorization'], MaxAge: 300 };
+await writeFile('output/cors.json', JSON.stringify(cors));
+aws(['lambda', 'update-function-url-config', '--function-name', deployment.ApiFunction, '--cors', 'file://output/cors.json']);
+execFileSync(process.execPath, ['scripts/build-site.mjs'], { stdio: 'inherit' });
+aws(['s3', 'sync', 'output/site', `s3://${deployment.SiteBucket}`, '--cache-control', 'public,max-age=300', '--only-show-errors']);
+console.log(aws(['cloudfront', 'create-invalidation', '--distribution-id', deployment.DistributionId, '--paths', '/*', '--query', 'Invalidation.Id', '--output', 'text']).trim());
+console.log(`Preview: ${deployment.PreviewUrl}`);
