@@ -3,7 +3,13 @@ const production = process.argv.includes('--production');
 await mkdir('output/site', { recursive: true }); await cp('site', 'output/site', { recursive: true });
 const deployment = await readFile('deployment.local.json', 'utf8').then(JSON.parse).catch(() => ({}));
 let config = await readFile('site/config.js', 'utf8');
-if (deployment.ApiUrl) config = config.replace("apiBase: ''", `apiBase: '${deployment.ApiUrl.replace(/\/$/, '')}'`);
+const apiBase = process.env.ETALON_API_URL || deployment.ApiUrl;
+if (production && !apiBase) throw new Error('Set ETALON_API_URL for a production build.');
+if (apiBase) {
+  const url = new URL(apiBase);
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('ETALON_API_URL must be a plain HTTPS API URL.');
+  config = config.replace("apiBase: ''", `apiBase: ${JSON.stringify(url.href.replace(/\/$/, ''))}`);
+}
 config = config.replace('preview: true', `preview: ${!production}`);
 await writeFile('output/site/config.js', config);
 if (production) {

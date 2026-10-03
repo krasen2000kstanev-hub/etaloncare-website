@@ -89,3 +89,9 @@ GitHub repository може да се прехвърли или клонира. A
 - https://aws.amazon.com/dynamodb/pricing/
 
 Няма гаранция за позиция в Google. Техническата SEO основа е проверена локално; Search Console, sitemap submission, реална индексация и Core Web Vitals се проверяват след публикуването на домейна.
+
+## Публикуване на отделен статичен хостинг
+
+Изходната директория е output/site; build command: `node scripts/build-site.mjs --production`. Настройката ETALON_API_URL трябва да е HTTPS адресът на AWS API, без тайни данни. deployment.local.json е локална алтернатива, която не се пренася чрез Git. При смяна на origin се проверяват Lambda CORS, SITE_URL, банковият BACKREF и CSP на публичния хостинг. Достъпът до API и тестовете от новия origin се проверяват преди DNS превключването.
+
+GitHub Pages има ограничение за сайтове с основна цел търговски сделки; няма активиран Pages deployment. Новият хостинг предстои да бъде избран. Преместването на сайта не отменя домейна или пощата при стария доставчик. Текущият MX сочи към etaloncare.com и трябва да бъде отделен от web адреса преди превключване.

@@ -6,7 +6,7 @@
     "dev": "node scripts/dev.mjs",
     "test:ui": "node tests/browser.mjs && node tests/checkout.mjs",
     "test:seo": "node tests/seo.mjs",
-    "test": "node --test tests/backend.test.mjs && node tests/seo.mjs",
+    "test": "node --test tests/backend.test.mjs && node tests/seo.mjs && node tests/build.mjs",
     "dev:api": "node backend/local.mjs"
   },
   "dependencies": {
