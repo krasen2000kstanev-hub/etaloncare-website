@@ -18,6 +18,8 @@ try {
     await page.waitForFunction(() => getComputedStyle(document.querySelector('.hero-copy')).opacity === '1');
     assert.equal(await page.locator('h1').count(), 1);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth); assert.equal(overflow, false, `Home overflows at ${width}`);
+    for (const image of await page.locator('img').all()) { await image.scrollIntoViewIfNeeded(); await image.evaluate(img => img.decode()); }
+    await page.evaluate(() => window.scrollTo(0, 0));
     const broken = await page.locator('img').evaluateAll(imgs => imgs.filter(i => !i.complete || i.naturalWidth === 0).map(i => i.src)); assert.deepEqual(broken, []);
     if (width < 760) {
       await page.getByRole('button', { name: 'Меню' }).click(); assert.equal(await page.getByRole('button', { name: 'Меню' }).getAttribute('aria-expanded'), 'true');
