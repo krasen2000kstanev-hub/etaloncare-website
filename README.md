@@ -14,7 +14,7 @@ npx playwright install chromium
 npm run test:ui
 ```
 
-На Windows browser QA използва инсталиран Chrome; на Linux използва Chromium на Playwright. `TEST_BROWSER=chromium` избира Chromium изрично. `npm run dev:api` стартира затворената локална API система на порт 4174. Основният preview е на http://127.0.0.1:4173.
+На Windows browser QA използва инсталиран Chrome; на Linux използва Chromium на Playwright. `TEST_BROWSER=chromium` избира Chromium изрично. `npm run dev:api` стартира затворената локална API система на порт 4174. Локалният preview е на http://127.0.0.1:4173. Публикуван AWS преглед: https://qbtajhfhmvagn5lxglooo53woe0etuic.lambda-url.eu-central-1.on.aws/ — резултатите и ограниченията са в [QA.md](QA.md).
 
 Статичният сайт няма framework или runtime зависимости. AWS SDK се използва само от Lambda. Playwright и axe са само за QA. Шрифтовете и предоставените изображения се доставят локално.
 
