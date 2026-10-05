@@ -351,7 +351,8 @@
           "AllowOrigins": [
             {
               "Ref": "SiteUrl"
-            }
+            },
+            "https://krasen2000kstanev-hub.github.io"
           ],
           "AllowMethods": [
             "GET",
