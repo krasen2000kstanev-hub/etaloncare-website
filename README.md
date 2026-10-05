@@ -101,3 +101,5 @@ GitHub Pages има ограничение за сайтове с основна
 Публичните index.html, booking.html, payment.html, privacy.html, styles.css, JavaScript и assets/ са в корена. backend/ съдържа отделната AWS система, infra/ — инфраструктурата, tests/ — проверките. public-files.json е списъкът за публикуване; output/site съдържа само разрешените публични файлове. backend и локалните настройки не влизат в публичния артефакт. Новото основно хранилище е etaloncare-website с main. Старото etalon-conference е запазено.
 
 GitHub Pages workflow е подготвен, но публикуването се включва само с repository variable ETALON_PAGES_ENABLED=true, след като Pages е достъпен за този частен repository. Стандартният преглед остава noindex и със затворена регистрация. Домейнът и пощата не са променени. Не е променяна видимостта на repository.
+
+GitHub Pages активирането на 05.10.2026 е отказано с HTTP 422: текущият план не поддържа Pages за това частно хранилище. main е основният branch, кодът и workflow са качени. Нужно е изрично разрешение преди промяна на видимостта към public. Репозиторито и DNS остават непроменени по видимост/адрес.

@@ -13,6 +13,7 @@ try {
   assert.equal(build('https://api.example.invalid/').status, 0);
   assert.match(await readFile(resolve(fixture, 'output/site/config.js'), 'utf8'), /apiBase: "https:\/\/api.example.invalid"/);
   assert.match(await readFile(resolve(fixture, 'output/site/index.html'), 'utf8'), /index, follow/);
+  for (const file of ['backend/event.json', 'public-files.json', 'deployment.local.json', 'README.md']) await assert.rejects(readFile(resolve(fixture, 'output/site', file)));
   for (const url of ['', 'http://api.example.invalid', 'https://user:secret@api.example.invalid', 'https://api.example.invalid/#token']) assert.notEqual(build(url).status, 0);
   console.log('Production build: external API configuration, indexing and HTTPS validation passed.');
 } finally { await rm(fixture, { recursive: true, force: true }); }
