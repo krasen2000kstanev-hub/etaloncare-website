@@ -102,4 +102,6 @@ test('Lambda static preview serves HTML/assets and blocks traversal', async () =
   assert.equal((await serveStatic(request('/assets/logo.webp'))).statusCode, 200);
   assert.equal((await serveStatic(request('/not-here.html'))).statusCode, 404);
   assert.equal(await serveStatic(request('/../backend/event.json')), null);
+  assert.equal((await serveStatic(request('/tests/browser.mjs'))), null);
+  assert.equal((await serveStatic(request('/node_modules/playwright/index.js'))).statusCode, 404);
 });

@@ -2,7 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve, sep, extname } from 'node:path';
 import { createHash } from 'node:crypto';
-const root = resolve(fileURLToPath(new URL('../site/', import.meta.url)));
+const root = resolve(fileURLToPath(new URL('../', import.meta.url)));
+const publicFiles = JSON.parse(await readFile(resolve(root, 'public-files.json'), 'utf8'));
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.xml': 'application/xml', '.ics': 'text/calendar; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 const html = await readFile(resolve(root, 'index.html'), 'utf8');
 const schema = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1];
@@ -15,6 +16,7 @@ export async function serveStatic(event) {
   const path = resolve(root, '.' + name);
   if (!path.startsWith(root + sep) || !types[extname(path)]) return null;
   try {
+    if (!(publicFiles.includes(name.slice(1)) || path.startsWith(resolve(root, 'assets') + sep))) throw new Error('Not public');
     let content = await readFile(path);
     if (name === '/config.js') content = Buffer.from(content.toString('utf8').replace("apiBase: ''", 'apiBase: window.location.origin'));
     return { statusCode: 200, headers: { ...secure, 'Content-Type': types[extname(path)], 'Cache-Control': extname(path) === '.html' || name === '/config.js' ? 'no-store' : 'public,max-age=300' }, isBase64Encoded: true, body: event.requestContext.http.method === 'HEAD' ? '' : content.toString('base64') };

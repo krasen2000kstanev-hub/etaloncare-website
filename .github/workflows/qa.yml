@@ -1,5 +1,5 @@
 name: Site and reservation QA
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
 jobs:
@@ -22,3 +22,30 @@ jobs:
           name: browser-qa
           path: output/qa
           retention-days: 7
+  pages:
+    needs: qa
+    if: github.ref == 'refs/heads/main' && vars.ETALON_PAGES_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/configure-pages@v5
+      - name: Build public files only
+        env:
+          ETALON_API_URL: https://qbtajhfhmvagn5lxglooo53woe0etuic.lambda-url.eu-central-1.on.aws/
+        run: node scripts/build-site.mjs
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: output/site
+      - name: Publish
+        id: deployment
+        uses: actions/deploy-pages@v4

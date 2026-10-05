@@ -7,4 +7,4 @@ __pycache__/
 .env*
 !.env.example
 deployment.local.json
-site/config.local.js
+config.local.js

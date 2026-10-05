@@ -16,7 +16,7 @@ aws(['s3api', 'put-public-access-block', '--bucket', bucket, '--public-access-bl
 const zip = await readFile('output/lambda.zip'); const key = `api-${createHash('sha256').update(zip).digest('hex').slice(0,16)}.zip`;
 aws(['s3api', 'put-object', '--bucket', bucket, '--key', key, '--body', 'output/lambda.zip', '--server-side-encryption', 'AES256']);
 const template = JSON.parse(await readFile('infra/template.json', 'utf8'));
-const html = await readFile('site/index.html', 'utf8');
+const html = await readFile('index.html', 'utf8');
 const schema = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1];
 const hash = createHash('sha256').update(schema).digest('base64');
 const csp = template.Resources.SecurityHeaders.Properties.ResponseHeadersPolicyConfig.SecurityHeadersConfig.ContentSecurityPolicy;

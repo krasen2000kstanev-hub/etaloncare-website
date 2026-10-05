@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
-const html = await readFile('site/index.html', 'utf8');
+const html = await readFile('index.html', 'utf8');
 assert.ok(html.includes('<html lang="bg">'));
 assert.equal((html.match(/<h1[\s>]/g) || []).length, 1);
 assert.match(html, /<title>[^<]{30,90}<\/title>/);
@@ -15,8 +15,8 @@ for (const match of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
   const url = match[1]; if (url === '#') continue;
   if (url.startsWith('#')) { assert.ok(ids.includes(url.slice(1)), `Anchor ${url}`); continue; }
   if (/^[a-z]+:/i.test(url)) continue;
-  await access(resolve('site', url.split(/[?#]/)[0]));
+  await access(resolve('.', url.split(/[?#]/)[0]));
 }
 for (const image of html.matchAll(/<img\b[^>]*>/g)) { assert.match(image[0], /\balt="[^"]+"/); assert.match(image[0], /\bwidth="\d+"/); assert.match(image[0], /\bheight="\d+"/); }
-assert.match(await readFile('site/assets/conference.ics', 'utf8'), /DTEND;VALUE=DATE:20270323/);
+assert.match(await readFile('assets/conference.ics', 'utf8'), /DTEND;VALUE=DATE:20270323/);
 console.log('SEO: language, heading, metadata, Event schema, anchors, images, files and calendar passed.');

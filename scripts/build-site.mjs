@@ -1,8 +1,10 @@
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 const production = process.argv.includes('--production');
-await mkdir('output/site', { recursive: true }); await cp('site', 'output/site', { recursive: true });
+await mkdir('output/site', { recursive: true });
+const publicFiles = JSON.parse(await readFile('public-files.json', 'utf8'));
+for (const file of [...publicFiles, 'assets']) await cp(file, `output/site/${file}`, { recursive: true });
 const deployment = await readFile('deployment.local.json', 'utf8').then(JSON.parse).catch(() => ({}));
-let config = await readFile('site/config.js', 'utf8');
+let config = await readFile('config.js', 'utf8');
 const apiBase = process.env.ETALON_API_URL || deployment.ApiUrl;
 if (production && !apiBase) throw new Error('Set ETALON_API_URL for a production build.');
 if (apiBase) {
@@ -13,7 +15,7 @@ if (apiBase) {
 config = config.replace('preview: true', `preview: ${!production}`);
 await writeFile('output/site/config.js', config);
 if (production) {
-  let html = await readFile('site/index.html', 'utf8');
+  let html = await readFile('index.html', 'utf8');
   html = html.replace('noindex, nofollow', 'index, follow').replace(/\s*<div class="preview-strip"[^>]*>[^<]*<\/div>/, '');
   await writeFile('output/site/index.html', html);
   await writeFile('output/site/robots.txt', 'User-agent: *\nAllow: /\nSitemap: https://etaloncare.com/sitemap.xml\n');

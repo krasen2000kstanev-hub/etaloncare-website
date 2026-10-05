@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 
@@ -5,7 +6,9 @@ root = Path(__file__).resolve().parents[1]
 out = root / 'output'
 out.mkdir(exist_ok=True)
 with ZipFile(out / 'lambda.zip', 'w', ZIP_DEFLATED) as archive:
-    for folder in ['backend', 'site', 'node_modules']:
+    for name in json.loads((root / 'public-files.json').read_text()) + ['public-files.json']:
+        archive.write(root / name, name)
+    for folder in ['backend', 'assets', 'node_modules']:
         for file in (root / folder).rglob('*'):
             if file.is_file() and (folder != 'backend' or file.suffix in ['.mjs', '.json']):
                 if folder == 'node_modules' and any(part in ['playwright', 'playwright-core', '@axe-core', 'axe-core'] for part in file.parts):

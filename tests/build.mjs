@@ -7,7 +7,8 @@ await mkdir(root, { recursive: true });
 const fixture = await mkdtemp(resolve(root, 'build-test-'));
 assert.ok(fixture.startsWith(root + sep));
 try {
-  await cp('site', resolve(fixture, 'site'), { recursive: true });
+  const publicFiles = JSON.parse(await readFile('public-files.json', 'utf8'));
+  for (const file of [...publicFiles, 'assets', 'public-files.json']) await cp(file, resolve(fixture, file), { recursive: true });
   const build = url => spawnSync(process.execPath, [resolve('scripts/build-site.mjs'), '--production'], { cwd: fixture, env: { ...process.env, ETALON_API_URL: url }, encoding: 'utf8' });
   assert.equal(build('https://api.example.invalid/').status, 0);
   assert.match(await readFile(resolve(fixture, 'output/site/config.js'), 'utf8'), /apiBase: "https:\/\/api.example.invalid"/);

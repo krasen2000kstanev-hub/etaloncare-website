@@ -42,3 +42,7 @@ Lighthouse SEO е 69 заради умишленото `noindex` на прегл
 Production build вече приема ETALON_API_URL от хостинга; отделен изпълним тест проверява HTTPS, липсващ адрес и забрана на URL с credentials или fragment.
 
 GitHub Pages не е активиран: [условията за Pages](https://docs.github.com/en/site-policy/github-terms/github-terms-for-additional-products-and-features#pages) изключват сайт с основна цел търговски сделки. Очаква се избор на подходящ хостинг. Репозиторито остава частно. DNS сочи към SuperHosting; MX е etaloncare.com, затова прехвърлянето на сайта изисква отделно запазване или преместване на пощата. Няма отменени услуги или сменени DNS записи.
+
+## Структура на проекта — 05.10.2026
+
+Публичният сайт е преместен в корена, както в Sofia Summit Center. Променени са локалният сървър, AWS пакетът, SEO и build проверките. public-files.json ограничава публикуването до сайта и assets; тестът проверява, че backend и node_modules не се обслужват публично. Backend/SEO/build проверките и браузърната проверка на четири размера са успешни. GitHub Pages workflow публикува само output/site след успешен QA, при включена repository настройка ETALON_PAGES_ENABLED. DNS и видимостта на хранилището са непроменени.
