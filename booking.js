@@ -30,7 +30,14 @@
           rows.querySelectorAll('.seat').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.seat === seat.id)));
           document.getElementById('selected-label').textContent = `Ред ${seat.row} · Място ${seat.number}${live ? '' : ' · примерен избор'}`;
           document.getElementById('selected-package').textContent = seat.tier === 'premium' ? 'Премиум' : 'Стандарт';
-          document.getElementById('selected-price').textContent = seat.tier === 'premium' ? '700 €' : '600 €';
+          const price = document.getElementById('selected-price');
+          const nextPrice = seat.tier === 'premium' ? '700 €' : '600 €';
+          const changed = price.textContent !== nextPrice;
+          price.textContent = nextPrice;
+          if (changed && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            price.getAnimations().forEach(animation => animation.cancel());
+            price.animate([{ opacity: .5, transform: 'translateY(3px)' }, { opacity: 1, transform: 'none' }], { duration: 180, easing: 'ease-out' });
+          }
           message(live ? '' : 'Това е преглед на избора. Не е създадена резервация.'); updateButton();
         }); line.append(button);
       }); rows.append(line);
