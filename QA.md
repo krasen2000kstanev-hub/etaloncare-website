@@ -64,3 +64,7 @@ etaloncare.com и пощата още не са прехвърлени. Pages п
 ## Whole-site motion — 07.10.2026
 
 Проверени са CSS/JS ефектите за home, booking, payment, privacy и 404, включително stagger на seat rows/form fields, FAQ open state, header scroll state и reduced-motion fallback. Axe проверката остава с 0 нарушения.
+
+## SEO copy update — 07.10.2026
+
+Обновени са title, meta description, Open Graph текстовете, Event schema description, H1, intro, теми, лектор, venue и FAQ. npm test и npm run test:ui са успешни; mobile overflow и accessibility остават без нарушения.
