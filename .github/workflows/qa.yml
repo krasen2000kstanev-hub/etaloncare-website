@@ -42,7 +42,7 @@ jobs:
       - name: Build public files only
         env:
           ETALON_API_URL: https://qbtajhfhmvagn5lxglooo53woe0etuic.lambda-url.eu-central-1.on.aws/
-        run: node scripts/build-site.mjs
+        run: node scripts/build-site.mjs --production
       - uses: actions/upload-pages-artifact@v4
         with:
           path: output/site
