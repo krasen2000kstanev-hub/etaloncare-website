@@ -53,14 +53,14 @@
       '<div class="bk"><img src="https://book.etaloncare.com/assets/cover.png" alt="Корица на „Разширена химия на ноктите“" width="92">' +
       '<div><small>НОВАТА КНИГА НА ДЪГ ШУН</small><strong>Разширена химия на ноктите</strong>' +
       '<a class="book" href="https://book.etaloncare.com/">За да видиш книгата, натисни тук →</a></div></div>' +
-      '<h1 id="soon-title">Сайтът за събитието стартира на 1 ноември</h1>' +
-      '<p>Науката за ноктите с Дъг Шун · София, 21–22 март 2027 г.<br>Остави име и имейл и ще ти изпратим линк, щом сайтът е активен.</p>' +
+      '<h1 id="soon-title">Регистрацията за конференцията стартира на 1 ноември</h1>' +
+      '<p>Науката за ноктите с Дъг Шун · София, 21–22 март 2027 г.<br>Остави име и имейл и ще ти изпратим линк, щом регистрацията започне.</p>' +
       '<div class="count" aria-live="off"><div><b data-u="d">00</b><span>ДНИ</span></div><div><b data-u="h">00</b><span>ЧАСА</span></div><div><b data-u="m">00</b><span>МИН</span></div><div><b data-u="s">00</b><span>СЕК</span></div></div>' +
       '<form novalidate>' +
       '<input type="text" name="name" placeholder="Име и фамилия" autocomplete="name" required maxlength="100" aria-label="Име и фамилия">' +
       '<input type="email" name="email" placeholder="Имейл" autocomplete="email" required maxlength="190" aria-label="Имейл">' +
       '<input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">' +
-      '<label class="c"><input type="checkbox" name="consent" required> <span>Съгласен/на съм ETALON CARE да използва името и имейла ми, за да ме уведоми за старта на сайта.</span></label>' +
+      '<label class="c"><input type="checkbox" name="consent" required> <span>Съгласен/на съм ETALON CARE да използва името и имейла ми, за да ме уведоми за старта на регистрацията.</span></label>' +
       '<button type="submit">Уведоми ме</button>' +
       '<p class="st" role="status"></p>' +
       '</form></div>';
@@ -100,7 +100,7 @@
       }).then(function (r) {
         if (!r.ok) throw new Error(r.status);
         form.innerHTML = '<p class="st" role="status" style="color:#176b51">Благодарим! Ще ти пишем на ' +
-          email.replace(/[<>&"]/g, '') + ', когато сайтът е активен.</p>';
+          email.replace(/[<>&"]/g, '') + ', когато регистрацията започне.</p>';
       }).catch(function () {
         btn.disabled = false;
         status.textContent = 'Нещо се обърка. Опитай пак след малко.';
