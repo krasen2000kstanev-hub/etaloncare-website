@@ -23,6 +23,9 @@ export class DynamoStore {
     if (remaining.length) throw new Error('Seat availability unavailable');
     return occupied;
   }
+  async subscribe({ email, name, createdAt }) {
+    await this.client.send(new UpdateCommand({ TableName: this.table, Key: { pk: `NOTIFY#${email}` }, UpdateExpression: 'SET #group=:g, email=:e, #name=:n, createdAt=if_not_exists(createdAt, :c)', ExpressionAttributeNames: { '#group': 'group', '#name': 'name' }, ExpressionAttributeValues: { ':g': 'notify', ':e': email, ':n': name, ':c': createdAt } }));
+  }
   async pending() { return this.query('pending'); }
   async limit(source, minute, maximum) {
     try {

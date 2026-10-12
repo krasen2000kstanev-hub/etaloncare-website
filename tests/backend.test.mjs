@@ -105,3 +105,14 @@ test('Lambda static preview serves HTML/assets and blocks traversal', async () =
   assert.equal((await serveStatic(request('/tests/browser.mjs'))), null);
   assert.equal((await serveStatic(request('/node_modules/playwright/index.js'))).statusCode, 404);
 });
+test('notify list validates input, honours honeypot and deduplicates by email', async () => {
+  const { store, service } = setup({ registrationEnabled: false });
+  await assert.rejects(service.notify({ name: 'М', email: 'a@b.bg', consent: true }), { status: 400 });
+  await assert.rejects(service.notify({ name: 'Мария', email: 'bad', consent: true }), { status: 400 });
+  await assert.rejects(service.notify({ name: 'Мария', email: 'a@b.bg' }), { status: 400 });
+  await service.notify({ name: 'Бот', email: 'bot@b.bg', consent: true, website: 'x' });
+  await service.notify({ name: 'Мария', email: 'A@B.bg', consent: true });
+  await service.notify({ name: 'Мария Иванова', email: 'a@b.bg', consent: true });
+  assert.deepEqual(store.db.prepare('SELECT email, name FROM subscribers').all().map(r => ({ ...r })), [{ email: 'a@b.bg', name: 'Мария Иванова' }]);
+  store.close();
+});

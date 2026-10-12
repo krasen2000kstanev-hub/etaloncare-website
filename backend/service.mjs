@@ -60,6 +60,16 @@ export class Service {
     if (!order || !safeEqual(order.tokenHash, digest(String(token || '')))) throw new ApiError(404, 'Заявката не е намерена.');
     return { reference: order.id, seatId: order.seatId, total: order.total, status: order.status };
   }
+  // Списък за известие при старта на сайта; не зависи от отворена регистрация.
+  async notify(input, source = 'unknown') {
+    const name = typeof input?.name === 'string' ? input.name.trim() : '', email = typeof input?.email === 'string' ? input.email.trim().toLowerCase() : '';
+    if (name.length < 2 || name.length > 100 || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || /[\u0000-\u001f\u007f]/.test(name + email)) throw new ApiError(400, 'Проверете името и имейла.');
+    if (input.consent !== true) throw new ApiError(400, 'Необходимо е съгласие.');
+    if (input.website) return { ok: true }; // honeypot: ботът вижда успех, нищо не се записва
+    if (!await this.store.limit(digest(`notify:${source}`), Math.floor(this.clock() / 60000), 30)) throw new ApiError(429, 'Твърде много заявки. Опитайте след минута.');
+    await this.store.subscribe({ email, name, createdAt: Math.floor(this.clock() / 1000) });
+    return { ok: true };
+  }
   async bankResult(fields, expected = {}) {
     if (!this.payment.verify(fields)) throw new ApiError(400, 'Невалиден подпис на платежната система.');
     const order = await this.store.byBank(fields.ORDER);

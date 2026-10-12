@@ -13,6 +13,10 @@ export function makeHandler(service, siteUrl) {
         if (event.headers?.origin !== new URL(siteUrl).origin) throw new ApiError(403, 'Невалиден източник на заявката.');
         if (!event.headers?.['content-type']?.startsWith('application/json')) throw new ApiError(415, 'Използвайте JSON.');
         data = await service.create(JSON.parse(raw), event.requestContext.http.sourceIp);
+      } else if (method === 'POST' && path === '/api/notify') {
+        if (event.headers?.origin !== new URL(siteUrl).origin) throw new ApiError(403, 'Невалиден източник на заявката.');
+        if (!event.headers?.['content-type']?.startsWith('application/json')) throw new ApiError(415, 'Използвайте JSON.');
+        data = await service.notify(JSON.parse(raw), event.requestContext.http.sourceIp);
       } else if (method === 'GET' && /^\/api\/orders\/[a-f0-9-]{36}$/.test(path)) {
         const token = event.headers?.authorization?.replace(/^Bearer /, '');
         data = await service.status(path.split('/').pop(), token);

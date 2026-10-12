@@ -2,11 +2,12 @@ import { DatabaseSync } from 'node:sqlite';
 export class SqliteStore {
   constructor(file = ':memory:') {
     this.db = new DatabaseSync(file);
-    this.db.exec('PRAGMA busy_timeout = 5000; CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, bank TEXT UNIQUE, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS seats (id TEXT PRIMARY KEY, owner TEXT NOT NULL); CREATE TABLE IF NOT EXISTS limits (id TEXT PRIMARY KEY, count INTEGER NOT NULL);');
+    this.db.exec('PRAGMA busy_timeout = 5000; CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, bank TEXT UNIQUE, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS seats (id TEXT PRIMARY KEY, owner TEXT NOT NULL); CREATE TABLE IF NOT EXISTS limits (id TEXT PRIMARY KEY, count INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS subscribers (email TEXT PRIMARY KEY, name TEXT NOT NULL, created INTEGER NOT NULL);');
   }
   get(id) { const row = this.db.prepare('SELECT data FROM orders WHERE id=?').get(id); return row ? JSON.parse(row.data) : null; }
   byBank(bank) { const row = this.db.prepare('SELECT data FROM orders WHERE bank=?').get(bank); return row ? JSON.parse(row.data) : null; }
   async occupied() { return this.db.prepare('SELECT id FROM seats').all().map(r => r.id); }
+  async subscribe({ email, name, createdAt }) { this.db.prepare('INSERT INTO subscribers VALUES(?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name').run(email, name, createdAt); }
   async pending() { return this.db.prepare('SELECT data FROM orders').all().map(r => JSON.parse(r.data)).filter(o => o.status === 'pending'); }
   async limit(source, minute, maximum) {
     this.db.prepare('DELETE FROM limits WHERE CAST(substr(id,1,instr(id,\':\')-1) AS INTEGER) < ?').run(minute - 5);
