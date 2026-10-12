@@ -53,7 +53,7 @@
       '<div class="bk"><img src="https://book.etaloncare.com/assets/cover.png" alt="Корица на „Разширена химия на ноктите“" width="92">' +
       '<div><small>НОВАТА КНИГА НА ДЪГ ШУН</small><strong>Разширена химия на ноктите</strong>' +
       '<a class="book" href="https://book.etaloncare.com/">За да видиш книгата, натисни тук →</a></div></div>' +
-      '<h1 id="soon-title">Регистрацията за конференцията стартира на 1 ноември</h1>' +
+      '<h1 id="soon-title">Регистрацията за конференцията с Дъг Шун стартира на 1 ноември</h1>' +
       '<p>Науката за ноктите с Дъг Шун · София, 21–22 март 2027 г.<br>Остави име и имейл и ще ти изпратим линк, щом регистрацията започне.</p>' +
       '<div class="count" aria-live="off"><div><b data-u="d">00</b><span>ДНИ</span></div><div><b data-u="h">00</b><span>ЧАСА</span></div><div><b data-u="m">00</b><span>МИН</span></div><div><b data-u="s">00</b><span>СЕК</span></div></div>' +
       '<form novalidate>' +
