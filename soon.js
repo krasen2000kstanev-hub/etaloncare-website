@@ -18,9 +18,16 @@
   css.textContent =
     'html.soon-locked,html.soon-locked body{overflow:hidden}' +
     'html.soon-locked body>*:not(#soon){filter:blur(14px);pointer-events:none;user-select:none}' +
-    '#soon{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:rgba(12,21,60,.55);font-family:Manrope,system-ui,sans-serif;overflow:auto}' +
-    '#soon .box{width:min(520px,100%);background:#fff;color:#14213c;border-radius:14px;padding:32px;box-shadow:0 30px 80px rgba(12,21,60,.35);text-align:center}' +
-    '#soon h1{font-size:clamp(26px,5vw,34px);margin:0 0 8px;letter-spacing:-.03em}' +
+    // flex + margin:auto: центрира, но при висок прозорец остава скролируем отгоре.
+    '#soon{position:fixed;inset:0;z-index:100;display:flex;padding:16px;background:rgba(12,21,60,.55);font-family:Manrope,system-ui,sans-serif;overflow:auto}' +
+    '#soon .box{margin:auto;width:min(540px,100%);background:#fff;color:#14213c;border-radius:14px;padding:28px;box-shadow:0 30px 80px rgba(12,21,60,.35);text-align:center}' +
+    '#soon .bk{display:flex;gap:18px;align-items:center;text-align:left;padding-bottom:22px;margin-bottom:22px;border-bottom:1px solid #dbe3ea}' +
+    '#soon .bk img{width:92px;height:auto;flex:none;border-radius:4px;box-shadow:0 8px 20px rgba(12,21,60,.25)}' +
+    '#soon .bk small{display:block;font-size:11px;font-weight:800;letter-spacing:.12em;color:#116b80}' +
+    '#soon .bk strong{display:block;font-size:20px;line-height:1.25;margin:4px 0 12px;letter-spacing:-.02em}' +
+    '#soon a.book{display:inline-flex;align-items:center;min-height:44px;padding:10px 14px;line-height:1.3;border-radius:6px;background:#0c153c;color:#fff;font-weight:800;font-size:13px;text-decoration:none}' +
+    '#soon a.book:hover{background:#1c2d70}' +
+    '#soon h1{font-size:clamp(22px,4.5vw,28px);margin:0 0 8px;letter-spacing:-.03em}' +
     '#soon p{margin:0 0 20px;color:#526079;font-size:15px;line-height:1.6}' +
     '#soon .count{display:flex;justify-content:center;gap:10px;margin:0 0 24px}' +
     '#soon .count div{min-width:70px;padding:10px 6px;border-radius:8px;background:#0c153c;color:#fff}' +
@@ -30,8 +37,7 @@
     '#soon label.c{display:flex;gap:8px;font-size:12px;color:#526079;align-items:flex-start}#soon label.c input{margin-top:3px}' +
     '#soon button{min-height:50px;border:0;border-radius:6px;background:#73d4dc;color:#0c153c;font:800 14px/1 Manrope,system-ui,sans-serif;cursor:pointer}' +
     '#soon button:disabled{opacity:.6;cursor:wait}#soon .st{min-height:20px;font-size:13px;margin:4px 0 0;text-align:center}' +
-    '#soon .hp{position:absolute;left:-9999px}' +
-    '#soon a.book{display:inline-flex;align-items:center;min-height:44px;margin-top:18px;color:#116b80;font-weight:700;font-size:14px;text-underline-offset:4px}';
+    '#soon .hp{position:absolute;left:-9999px}';
   root.appendChild(css);
 
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -44,7 +50,10 @@
     el.setAttribute('aria-labelledby', 'soon-title');
     el.innerHTML =
       '<div class="box">' +
-      '<h1 id="soon-title">Сайтът стартира на 1 ноември</h1>' +
+      '<div class="bk"><img src="https://book.etaloncare.com/assets/cover.png" alt="Корица на „Разширена химия на ноктите“" width="92">' +
+      '<div><small>НОВАТА КНИГА НА ДЪГ ШУН</small><strong>Разширена химия на ноктите</strong>' +
+      '<a class="book" href="https://book.etaloncare.com/">За да видиш книгата, натисни тук →</a></div></div>' +
+      '<h1 id="soon-title">Сайтът за събитието стартира на 1 ноември</h1>' +
       '<p>Науката за ноктите с Дъг Шун · София, 21–22 март 2027 г.<br>Остави име и имейл и ще ти изпратим линк, щом сайтът е активен.</p>' +
       '<div class="count" aria-live="off"><div><b data-u="d">00</b><span>ДНИ</span></div><div><b data-u="h">00</b><span>ЧАСА</span></div><div><b data-u="m">00</b><span>МИН</span></div><div><b data-u="s">00</b><span>СЕК</span></div></div>' +
       '<form novalidate>' +
@@ -54,9 +63,7 @@
       '<label class="c"><input type="checkbox" name="consent" required> <span>Съгласен/на съм ETALON CARE да използва името и имейла ми, за да ме уведоми за старта на сайта.</span></label>' +
       '<button type="submit">Уведоми ме</button>' +
       '<p class="st" role="status"></p>' +
-      '</form>' +
-      '<a class="book" href="https://book.etaloncare.com/">За да видиш книгата, натисни тук →</a>' +
-      '</div>';
+      '</form></div>';
     document.body.appendChild(el);
 
     var units = {};
@@ -99,7 +106,6 @@
         status.textContent = 'Нещо се обърка. Опитай пак след малко.';
       });
     });
-    form.name.focus();
   }
 
   if (param) {
