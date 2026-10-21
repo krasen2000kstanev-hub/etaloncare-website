@@ -58,3 +58,10 @@
 @keyframes orbit-drift-one{from{transform:rotate(-30deg)}to{transform:rotate(-25deg)}}
 /* Full-width desktop layout */
 @media (min-width:1025px){.container{width:calc(100% - 64px);max-width:none}.intro-grid>.eyebrow,.intro-grid>div{max-width:none}.packages,.package-common{max-width:none}.prose{width:calc(100% - 64px);max-width:none}.page-heading p{max-width:none}}
+
+
+/* Etalon Care chemistry background from approved banner asset. */
+:root{--chemistry-bg:url('/assets/banner-himiya-noktite-bg.jpg')}
+.hero,.topic-feature,.speaker-art,.final-cta{background-image:linear-gradient(rgba(12,21,60,.22),rgba(12,21,60,.22)),var(--chemistry-bg);background-size:cover;background-position:center;background-repeat:no-repeat}
+.hero-pattern{opacity:.24}
+@media(max-width:760px){.hero,.topic-feature,.speaker-art,.final-cta{background-position:center top}}
