@@ -56,4 +56,5 @@
 }
 @keyframes section-enter{from{opacity:.95;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes orbit-drift-one{from{transform:rotate(-30deg)}to{transform:rotate(-25deg)}}
-@keyframes orbit-drift-two{from{transform:rotate(40deg)}to{transform:rotate(35deg)}}
+/* Full-width desktop layout */
+@media (min-width:1025px){.container{width:calc(100% - 64px);max-width:none}.intro-grid>.eyebrow,.intro-grid>div{max-width:none}.packages,.package-common{max-width:none}.prose{width:calc(100% - 64px);max-width:none}.page-heading p{max-width:none}}
