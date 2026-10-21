@@ -18,7 +18,7 @@
     const rowNames = [...new Set(seats.map(s => s.row))];
     rowNames.forEach((row, rowIndex) => {
       const line = document.createElement('div'); line.className = 'seat-row';
-      line.style.setProperty('--seat-delay', `${Math.min(rowIndex, 9) * 35}ms`);
+      line.style.setProperty('--seat-delay', `${Math.min(rowIndex, 7) * 35}ms`);
       const label = document.createElement('span'); label.className = 'row-label'; label.textContent = row; line.append(label);
       seats.filter(s => s.row === row).forEach(seat => {
         const button = document.createElement('button'); button.type = 'button'; button.className = `seat ${seat.tier}`;
