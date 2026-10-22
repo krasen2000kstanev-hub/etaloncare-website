@@ -32,7 +32,7 @@ try {
     assert.deepEqual(failures, []);
     await page.evaluate(() => scrollTo(0, 0)); await page.screenshot({ path: `output/qa/home-${width}.png`, fullPage: true });
     await page.goto(`${base}/booking.html?package=premium`, { waitUntil: 'networkidle' });
-    assert.equal(await page.locator('.seat').count(), 100); assert.equal(await page.locator('.seat.premium').count(), 20);
+    assert.equal(await page.locator('.seat').count(), 120); assert.equal(await page.locator('.seat.premium').count(), 15);
     assert.equal(await page.locator('#reserve-button').isEnabled(), false); assert.equal(await page.locator('input[name=email]').isEnabled(), false);
     await page.locator('[data-seat="A01"]').click(); assert.equal(await page.locator('#selected-price').innerText(), '700 €'); assert.match(await page.locator('#form-status').innerText(), /Не е създадена резервация/);
     await page.locator('[data-seat="C03"]').click(); assert.equal(await page.locator('#selected-price').innerText(), '600 €');
