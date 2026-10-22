@@ -10,7 +10,7 @@ if (production && !apiBase) throw new Error('Set ETALON_API_URL for a production
 if (apiBase) {
   const url = new URL(apiBase);
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('ETALON_API_URL must be a plain HTTPS API URL.');
-  config = config.replace("apiBase: ''", `apiBase: ${JSON.stringify(url.href.replace(/\/$/, ''))}`);
+  config = config.replace(/apiBase: (?:''|window\.location\.origin)/, `apiBase: ${JSON.stringify(url.href.replace(/\/$/, ''))}`);
 }
 config = config.replace('preview: true', `preview: ${!production}`);
 await writeFile('output/site/config.js', config);
