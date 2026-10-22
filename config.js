@@ -1,5 +1,5 @@
 window.ETALON_CONFIG = {
-  apiBase: "https://qbtajhfhmvagn5lxglooo53woe0etuic.lambda-url.eu-central-1.on.aws",
+  apiBase: window.location.origin,
   registrationOpens: '2026-10-31T22:00:00Z',
   registrationEnabled: false,
   preview: false,
