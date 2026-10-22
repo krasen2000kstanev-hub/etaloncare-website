@@ -1,8 +1,8 @@
 window.ETALON_CONFIG = {
-  apiBase: '',
+  apiBase: "https://qbtajhfhmvagn5lxglooo53woe0etuic.lambda-url.eu-central-1.on.aws",
   registrationOpens: '2026-10-31T22:00:00Z',
   registrationEnabled: false,
-  preview: true,
+  preview: false,
   seatPlanApproved: false,
   contactEmail: 'info@etaloncare.com'
 };
