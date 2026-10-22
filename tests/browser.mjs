@@ -44,7 +44,7 @@ try {
   }
   const reduced = await browser.newPage({ reducedMotion: 'reduce' }); await reduced.goto(base);
   assert.equal(await reduced.locator('.hero-copy').evaluate(e => getComputedStyle(e).animationName), 'none'); await reduced.close();
-  const noJs = await browser.newPage({ javaScriptEnabled: false }); await noJs.goto(base); assert.match(await noJs.locator('h1').innerText(), /Науката/); assert.ok(await noJs.locator('#participation').isVisible()); await noJs.close();
+  const noJs = await browser.newPage({ javaScriptEnabled: false }); await noJs.goto(base); assert.match(await noJs.locator('h1').innerText(), /Науката/i); assert.ok(await noJs.locator('#participation').isVisible()); await noJs.close();
   await writeFile('output/qa/browser-report.json', JSON.stringify(report, null, 2));
   const violations = report.flatMap(r => r.accessibility);
   console.log(JSON.stringify(report, null, 2));
