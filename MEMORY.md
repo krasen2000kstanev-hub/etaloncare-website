@@ -45,3 +45,12 @@ npm test
 npm run test:ui
 npm run dev:api
 This file is a project memory summary. README.md and QA.md remain the authoritative detailed project documentation.
+
+
+## Synchronization — 23.10.2026
+- Current main commit: `28cd4d87437ed1a43796b95c701afced282860b7` (documentation synchronization).
+- Live public site: https://etaloncare.com/
+- Book site: https://book.etaloncare.com/; domain and mail settings are unchanged.
+- Recent live content state: Bulgarian simultaneous-translation wording removed from public content and calendar; registration-opening FAQ removed; package benefits and 120-seat example map retained.
+- Registration remains disabled; the booking screen is an example map with 8 rows and 3 blocks of 5 seats.
+- Graph artifacts are tracked in `graph.html`, `graph.json`, and `GRAPH_REPORT.md`; do not commit secrets, personal data, orders, or local deployment settings.
