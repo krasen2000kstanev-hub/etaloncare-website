@@ -9,7 +9,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4b3de8d7`
+- Built from repository snapshot: `f9d85643af5ae015a585ae62818cd86f90d80b2d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -113,3 +113,9 @@ _Questions this graph is uniquely positioned to answer:_
   _Cohesion score 0.09538461538461539 - nodes in this community are weakly interconnected._
 - **Should `package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.11764705882352941 - nodes in this community are weakly interconnected._
+
+## Synchronization — 23.10.2026
+- The graph artifacts `graph.html` and `graph.json` are tracked in the repository.
+- `graph.json` metadata is synchronized with the current `main` snapshot.
+- Recent updates are primarily public copy and documentation changes; the code relationships represented by the map remain unchanged.
+- For future structural code changes, regenerate the graph and update this report’s snapshot reference.
