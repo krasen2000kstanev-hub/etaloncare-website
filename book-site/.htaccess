@@ -1,0 +1,9 @@
+RewriteEngine on
+
+RewriteCond %{HTTP_HOST} ^book\.etaloncare\.com$ [NC]
+RewriteCond %{REQUEST_URI} !^/book-site/
+RewriteRule ^(.*)$ book-site/$1 [L]
+
+RewriteCond %{HTTP_HOST} ^etaloncare\.com$ [OR]
+RewriteCond %{HTTP_HOST} ^www\.etaloncare\.com$
+RewriteRule ^admin\/?$ "https\:\/\/book\.etaloncare\.com\/admin" [R=301,L]

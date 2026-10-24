@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://etaloncare.com/sitemap.xml
