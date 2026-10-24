@@ -1,0 +1,10 @@
+config.php
+*.sql
+keys/
+uploads/
+logs/
+tmp/
+.env
+.env.*
+!.env.example
+

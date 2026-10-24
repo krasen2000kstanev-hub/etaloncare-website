@@ -1,0 +1,17 @@
+# robots.txt for www.etaloncare.bg
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /app/
+Disallow: /uploads/private/
+
+# Allow crawling of CSS/JS so Google can render the page
+Allow: /assets/
+Allow: /styles.css
+Allow: /*.js
+Allow: /*.jsx
+Allow: /*.css
+
+Sitemap: https://www.etaloncare.bg/sitemap.xml

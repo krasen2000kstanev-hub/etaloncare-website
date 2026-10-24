@@ -1,0 +1,16 @@
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Pass real files (assets/admin.css, etc.) through directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else → front controller
+  RewriteRule ^(.*)$ index.php?path=$1 [QSA,L]
+</IfModule>
+
+# Block direct access to view templates (views/ also has its own .htaccess deny)
+RedirectMatch 404 ^/.*/admin/views(/|$)
