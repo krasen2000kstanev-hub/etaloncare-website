@@ -11,7 +11,8 @@
   nav?.addEventListener('click', e => { if (e.target.closest('a')) closeMenu(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && nav?.classList.contains('open')) { closeMenu(); toggle.focus(); } });
   const header = document.querySelector('.header');
-  const updateHeader = () => header?.classList.toggle('scrolled', scrollY > 12);
+  const toTop = document.querySelector('.to-top');
+  const updateHeader = () => { header?.classList.toggle('scrolled', scrollY > 12); if (toTop) toTop.hidden = scrollY < 600; };
   addEventListener('scroll', updateHeader, { passive: true }); updateHeader();
   const ready = window.ETALON_CONFIG.registrationEnabled && window.ETALON_CONFIG.seatPlanApproved && Date.now() >= Date.parse('2026-11-01T00:00:00+02:00');
   if (ready) {
