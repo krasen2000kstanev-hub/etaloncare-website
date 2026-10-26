@@ -47,12 +47,15 @@ npm run dev:api
 This file is a project memory summary. README.md and QA.md remain the authoritative detailed project documentation.
 
 
-## Synchronization — 25.10.2026
+## Synchronization — 26.10.2026
 - Live public site: https://etaloncare.com/ is served by GitHub Pages from `main` (pages job in qa.yml); DNS is in Cloudflare; mail and cPanel stay at SuperHosting.
 - Book site: https://book.etaloncare.com/ is a separate PHP app on AWS EC2 behind Cloudflare (Full strict rule for that host only).
 - Venue: Интер Експо Център, зала Витоша, бул. „Цариградско шосе“ 147, София (home, FAQ, booking, privacy, calendar, Event schema).
 - Hero facts include ЕЗИК (simultaneous Bulgarian translation, lecture in English); FAQ mentions the translation again.
-- Speaker card uses assets/doug-schoon-books.webp (cut-out photo, bottom fade). Topic labels: 01 / НАУЧНИТЕ ФАКТИ, 02 / Нокътят, 03 / Химията, 04 / Безопасността, 05 / Проблемите.
+- Speaker card uses assets/doug-schoon-chair.webp?v=2 (seated photo, cut out, 4x Real-ESRGAN + Lanczos blend); on desktop the card height follows the text column and the photo is contained at the bottom.
+- Topic labels: 01 / НАУЧНИТЕ ФАКТИ, 02 / НОКЪТЯТ, 03 / ХИМИЯТА, 04 / БЕЗОПАСНОСТТА, 05 / ПРОБЛЕМИТЕ (15px). Card 04 text is about factors affecting safety and quality of professional work.
+- Hero title accent line „НАУКАТА ЗАД НОКТИТЕ“ is 0.7em. Venue paragraph mentions simultaneous translation and all nail professionals from beginners to educators.
+- CI QA job timeout is 20 minutes; a Playwright install timeout cancels the run and skips the Pages deploy.
 - Home page has a back-to-top link (.to-top) shown after 600px of scroll.
 - Bump the `?v=` query on styles.css/app.js in the HTML pages whenever they change; browsers cache them for 4 hours.
 - Registration remains disabled; the booking screen is an example map with 8 rows and 3 blocks of 5 seats.
