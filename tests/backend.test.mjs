@@ -73,7 +73,7 @@ test('status query checks its nonce and releases only after the guard time', asy
 test('missed callback is reconciled against signed bank status', async () => {
   const { store, service } = setup(); const result = await service.create(input()); const order = await store.get(result.reference);
   service.payment = Object.create(payment); service.payment.query = async (_, nonce) => bankFields(order, { TRTYPE: '90', TRAN_TRTYPE: '1', NONCE: nonce });
-  service.clock = () => Date.parse('2026-11-02T12:17:00Z'); assert.deepEqual(await service.reconcile(), { checked: 1, unresolved: 0, expired: 0 }); assert.equal((await store.get(order.id)).status, 'paid'); store.close();
+  service.clock = () => Date.parse('2026-11-02T12:17:00Z'); assert.deepEqual(await service.reconcile(), { checked: 1, unresolved: 0, expired: 0, forfeited: 0, emails: 0 }); assert.equal((await store.get(order.id)).status, 'paid'); store.close();
 });
 test('per-source reservation limit is shared and enforced', async () => {
   const { store, service } = setup(); for (let i = 1; i <= 5; i++) await service.create(input(`30${i}`), 'same-source');
@@ -123,15 +123,57 @@ test('request mode records the seat without card data or a bank', async () => {
   assert.equal((await service.create(data)).reference, order.reference);
   const availability = await service.availability(); assert.equal(availability.paymentMode, 'request'); assert.equal(availability.registrationOpen, true); assert.equal(availability.seats.find(s => s.id === '101').available, false);
   await assert.rejects(service.create({ ...input('101') }), { status: 409 });
-  assert.deepEqual(await store.pending(), []); assert.deepEqual(await service.reconcile(), { checked: 0, unresolved: 0, expired: 0 }); store.close();
+  assert.deepEqual(await store.pending(), []); assert.deepEqual(await service.reconcile(), { checked: 0, unresolved: 0, expired: 0, forfeited: 0, emails: 0 }); store.close();
 });
-test('unpaid requests free the seat after 14 days, marked ones stay', async () => {
+test('unpaid requests free the seat after 14 days plus grace, marked ones stay', async () => {
   const { store, service } = setup({ paymentMode: 'request' }); service.payment = new Borica({}); const start = Date.parse('2026-11-02T12:00:00Z'); let now = start; service.clock = () => now;
   const { cardholderName, billingAddress, ...unpaid } = input('301'); const { cardholderName: c2, billingAddress: b2, ...paid } = input('302');
   await service.create(unpaid); await service.create(paid);
   const marked = await store.get(paid.requestId); store.db.prepare('UPDATE orders SET data=? WHERE id=?').run(JSON.stringify({ ...marked, status: 'deposit' }), paid.requestId);
-  now = start + 14 * 86400000 - 1000; assert.equal((await service.reconcile()).expired, 0); assert.equal((await store.occupied()).length, 2);
-  now = start + 14 * 86400000 + 1000; assert.equal((await service.reconcile()).expired, 1); assert.deepEqual(await store.occupied(), ['302']);
+  now = start + 17 * 86400000 - 1000; assert.equal((await service.reconcile()).expired, 0); assert.equal((await store.occupied()).length, 2);
+  now = start + 17 * 86400000 + 1000; assert.equal((await service.reconcile()).expired, 1); assert.deepEqual(await store.occupied(), ['302']);
   assert.equal((await store.get(unpaid.requestId)).status, 'expired'); assert.equal((await store.get(paid.requestId)).status, 'deposit'); assert.equal((await service.reconcile()).expired, 0);
   const { cardholderName: c3, billingAddress: b3, ...again } = input('301'); assert.equal((await service.create(again)).status, 'requested'); store.close();
+});
+function requestSetup(start = '2026-11-02T12:00:00Z') {
+  const { store, service } = setup({ paymentMode: 'request' }); const sent = []; let now = Date.parse(start);
+  service.payment = new Borica({}); service.clock = () => now; service.bank = { recipient: 'ETALON', iban: 'BG00TEST', bic: 'TESTBGSF' };
+  service.mailer = { ready: true, send: async mail => { sent.push(mail); } };
+  const request = seatId => { const { cardholderName, billingAddress, ...data } = input(seatId); return data; };
+  const mark = async (id, status) => { const order = await store.get(id); store.db.prepare('UPDATE orders SET data=? WHERE id=?').run(JSON.stringify({ ...order, status }), id); };
+  return { store, service, sent, request, mark, at: value => { now = Date.parse(value); } };
+}
+test('confirmation and day 10 reminder go out once, with bank data and both amounts', async () => {
+  const { store, service, sent, request, at } = requestSetup(); await service.create(request('101'));
+  assert.equal(sent.length, 1); assert.match(sent[0].subject, /Заявката ви е приета/); assert.match(sent[0].text, /BG00TEST/); assert.match(sent[0].text, /700 €/); assert.match(sent[0].text, /350 €/); assert.match(sent[0].text, /ред 1, място 1/); assert.match(sent[0].text, /31\.01\.2027/);
+  at('2026-11-11T12:00:00Z'); await service.reconcile(); assert.equal(sent.length, 1);
+  at('2026-11-12T13:00:00Z'); await service.reconcile(); assert.equal(sent.length, 2); assert.match(sent[1].subject, /Напомняне/);
+  await service.reconcile(); assert.equal(sent.length, 2);
+  at('2026-11-19T11:00:00Z'); assert.equal((await service.reconcile()).expired, 0);
+  at('2026-11-20T13:00:00Z'); assert.equal((await service.reconcile()).expired, 1); assert.match(sent.at(-1).subject, /отпадна/); assert.equal((await store.occupied()).length, 0); store.close();
+});
+test('deposit gets capture mail, two reminders, then forfeits the seat and keeps the deposit', async () => {
+  const { store, service, sent, request, mark, at } = requestSetup(); const data = request('301'); await service.create(data); sent.length = 0;
+  await mark(data.requestId, 'deposit'); at('2026-11-20T13:00:00Z'); await service.reconcile();
+  assert.equal(sent.length, 1); assert.match(sent[0].subject, /капарирано/); assert.match(sent[0].text, /300 €/); assert.equal((await store.occupied()).length, 1);
+  at('2027-01-16T12:00:00Z'); await service.reconcile(); assert.equal(sent.length, 1);
+  at('2027-01-18T12:00:00Z'); await service.reconcile(); await service.reconcile(); assert.equal(sent.length, 2); assert.match(sent[1].subject, /втората вноска/);
+  at('2027-01-25T12:00:00Z'); await service.reconcile(); assert.equal(sent.length, 3); assert.match(sent[2].subject, /една седмица/);
+  at('2027-02-02T12:00:00Z'); assert.equal((await service.reconcile()).forfeited, 0); assert.equal((await store.occupied()).length, 1);
+  at('2027-02-04T12:00:00Z'); assert.equal((await service.reconcile()).forfeited, 1); assert.equal((await store.occupied()).length, 0); assert.match(sent.at(-1).text, /не се възстановява/); assert.equal((await store.get(data.requestId)).status, 'forfeited'); store.close();
+});
+test('fully paid order keeps its seat with no reminders', async () => {
+  const { store, service, sent, request, mark, at } = requestSetup(); const data = request('302'); await service.create(data); sent.length = 0;
+  await mark(data.requestId, 'paid'); at('2027-02-10T12:00:00Z'); await service.reconcile(); await service.reconcile();
+  assert.equal(sent.length, 1); assert.match(sent[0].subject, /получено/); assert.equal((await store.occupied()).length, 1); store.close();
+});
+test('late request is asked for the full amount only', async () => {
+  const { store, service, sent, request } = requestSetup('2027-01-20T12:00:00Z'); await service.create(request('303'));
+  assert.match(sent[0].text, /цялата сума 600 €/); assert.doesNotMatch(sent[0].text, /вноска/); store.close();
+});
+test('mail failure keeps the reservation and retries on the next run', async () => {
+  const { store, service, sent, request } = requestSetup(); const ok = service.mailer.send; service.mailer.send = async () => { throw new Error('down'); };
+  const data = request('304'); const order = await service.create(data); assert.equal(order.status, 'requested'); assert.equal((await store.occupied()).length, 1); assert.equal(sent.length, 0);
+  assert.equal((await service.reconcile()).emails, 0); service.mailer.send = ok;
+  assert.equal((await service.reconcile()).emails, 1); assert.equal(sent.length, 1); store.close();
 });

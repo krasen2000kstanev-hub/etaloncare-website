@@ -9,6 +9,11 @@
   "planDescription": "Зала Витоша: 9 реда по 14 места, общо 126. Първите два реда са Премиум.",
   "paymentMode": "request",
   "requestDays": 14,
+  "graceDays": 3,
+  "firstReminderDay": 10,
+  "firstInstalmentPercent": 50,
+  "secondInstalmentDue": "2027-01-31T21:59:59Z",
+  "secondReminderDays": [14, 7],
   "currency": "EUR",
   "prices": { "standard": 600, "premium": 700 },
   "rows": [

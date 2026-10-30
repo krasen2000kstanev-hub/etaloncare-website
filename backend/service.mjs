@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
+import { emailsDue, renderEmail, secondDeadline } from './emails.mjs';
 export class ApiError extends Error { constructor(status, message) { super(message); this.status = status; } }
 const digest = value => createHash('sha256').update(value).digest('hex');
 const safeEqual = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -8,7 +9,7 @@ export function seatPlan(config) {
   return seats;
 }
 export class Service {
-  constructor({ store, payment, config, clock = () => Date.now() }) { this.store = store; this.payment = payment; this.config = config; this.clock = clock; this.seats = seatPlan(config); }
+  constructor({ store, payment, config, mailer, bank, clock = () => Date.now() }) { this.store = store; this.payment = payment; this.config = config; this.mailer = mailer; this.bank = bank; this.clock = clock; this.seats = seatPlan(config); }
   // Заявка без картово плащане: мястото се пази requestDays дни или докато организаторът не смени статуса след превод.
   get requests() { return this.config.paymentMode === 'request'; }
   open() { const now = this.clock(); return this.config.registrationEnabled && this.config.seatPlanApproved && this.config.termsApproved && (this.requests || this.payment.ready) && now >= Date.parse(this.config.registrationOpens) && now < Date.parse(this.config.registrationCloses); }
@@ -38,12 +39,13 @@ export class Service {
     // Reservation rate limits are enforced in shared storage, never only in the browser.
     if (!await this.store.limit(digest(source), Math.floor(this.clock() / 60000), 5)) throw new ApiError(429, 'Твърде много заявки. Опитайте след минута.');
     const createdAt = Math.floor(this.clock() / 1000);
-    const order = { ...data, status: this.requests ? 'requested' : 'pending', createdAt, termsVersion: this.config.termsVersion, termsAcceptedAt: createdAt, nonce: randomBytes(16).toString('hex').toUpperCase(), timestamp: new Date(this.clock()).toISOString().replace(/[-:TZ.]/g, '').slice(0, 14) };
+    const order = { ...data, status: this.requests ? 'requested' : 'pending', emails: {}, createdAt, termsVersion: this.config.termsVersion, termsAcceptedAt: createdAt, nonce: randomBytes(16).toString('hex').toUpperCase(), timestamp: new Date(this.clock()).toISOString().replace(/[-:TZ.]/g, '').slice(0, 14) };
     for (let attempt = 0; attempt < 5; attempt++) {
       order.bankOrder = String(randomInt(100000, 1000000));
       // Sign before claiming a seat; a broken bank configuration cannot strand an order.
       const checkout = this.requests ? undefined : this.payment.checkout(order);
       const result = await this.store.reserve(order);
+      if (result === 'ok' && this.requests) await this.sendDue(order).catch(error => console.error('Email failure:', error.name)); // Планираната задача опитва отново.
       if (result === 'ok') return { reference: order.id, seatId: order.seatId, total: order.total, status: order.status, checkout };
       if (result === 'bankCollision') continue;
       const duplicate = await this.store.get(data.id);
@@ -93,17 +95,39 @@ export class Service {
     }
     return order; // Unknown or nonfinal results keep the seat unavailable until reconciliation.
   }
-  async expireRequests() {
-    const limit = this.clock() / 1000 - this.config.requestDays * 86400; let expired = 0;
-    for (const order of await this.store.requested()) {
-      if (order.createdAt >= limit) continue;
-      await this.store.expire(order, Math.floor(this.clock() / 1000)); expired++;
+  // Гратисните дни дават време на превода да пристигне и организаторът да го отбележи.
+  async releaseUnpaid() {
+    const now = this.clock(), at = Math.floor(now / 1000), grace = this.config.graceDays * 86400000; let expired = 0, forfeited = 0;
+    for (const order of await this.store.byStatus('requested')) {
+      if (now <= order.createdAt * 1000 + this.config.requestDays * 86400000 + grace) continue;
+      await this.store.release(order, 'requested', 'expired', at); expired++;
     }
-    return expired;
+    if (now > secondDeadline(this.config) + grace) for (const order of await this.store.byStatus('deposit')) { await this.store.release(order, 'deposit', 'forfeited', at); forfeited++; }
+    return { expired, forfeited };
+  }
+  async sendDue(order) {
+    if (!this.mailer?.ready || !this.bank?.iban) return 0;
+    let sent = 0;
+    for (const key of emailsDue(order, this.config, this.clock())) {
+      await this.mailer.send({ to: order.email, ...renderEmail(key, order, this.config, this.bank) });
+      await this.store.markEmail(order.id, key, Math.floor(this.clock() / 1000)); sent++;
+    }
+    return sent;
+  }
+  // ponytail: до 20 имейла на пускане, за да не удари лимита на пощата и 30-те секунди на Lambda; останалите тръгват след 15 минути.
+  async sendAllDue() {
+    let emails = 0;
+    try {
+      for (const status of ['requested', 'deposit', 'paid', 'expired', 'forfeited']) for (const order of await this.store.byStatus(status)) {
+        if (emails >= 20) return emails;
+        emails += await this.sendDue(order);
+      }
+    } catch (error) { console.error('Email failure:', error.name); }
+    return emails;
   }
   async reconcile() {
-    const expired = await this.expireRequests();
-    if (!this.payment.ready) return { checked: 0, unresolved: 0, expired };
+    const done = this.requests ? { ...await this.releaseUnpaid(), emails: await this.sendAllDue() } : { expired: 0, forfeited: 0, emails: 0 };
+    if (!this.payment.ready) return { checked: 0, unresolved: 0, ...done };
     const pending = await this.store.pending(); let checked = 0, unresolved = 0;
     for (const order of pending) {
       if (this.clock() / 1000 - order.createdAt < 960) continue;
@@ -115,6 +139,6 @@ export class Service {
         checked++; if (result.status === 'pending') unresolved++;
       } catch { unresolved++; }
     }
-    return { checked, unresolved, expired };
+    return { checked, unresolved, ...done };
   }
 }

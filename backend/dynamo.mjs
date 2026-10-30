@@ -27,10 +27,13 @@ export class DynamoStore {
     await this.client.send(new UpdateCommand({ TableName: this.table, Key: { pk: `NOTIFY#${email}` }, UpdateExpression: 'SET #group=:g, email=:e, #name=:n, createdAt=if_not_exists(createdAt, :c)', ExpressionAttributeNames: { '#group': 'group', '#name': 'name' }, ExpressionAttributeValues: { ':g': 'notify', ':e': email, ':n': name, ':c': createdAt } }));
   }
   async pending() { return this.query('pending'); }
-  async requested() { return this.query('requested'); }
+  async byStatus(status) { return this.query(status); }
+  async markEmail(id, key, at) {
+    await this.client.send(new UpdateCommand({ TableName: this.table, Key: { pk: `ORDER#${id}` }, UpdateExpression: 'SET emails.#k=:t', ConditionExpression: 'attribute_exists(pk)', ExpressionAttributeNames: { '#k': key }, ExpressionAttributeValues: { ':t': at } }));
+  }
   // Условието за статус пази платена заявка, ако организаторът я е отбелязал междувременно.
-  async expire(order, at) {
-    const update = { Update: { TableName: this.table, Key: { pk: `ORDER#${order.id}` }, UpdateExpression: 'SET #status=:s, #group=:s, expiredAt=:a', ConditionExpression: '#status=:requested', ExpressionAttributeNames: { '#status': 'status', '#group': 'group' }, ExpressionAttributeValues: { ':s': 'expired', ':requested': 'requested', ':a': at } } };
+  async release(order, from, to, at) {
+    const update = { Update: { TableName: this.table, Key: { pk: `ORDER#${order.id}` }, UpdateExpression: 'SET #status=:s, #group=:s, releasedAt=:a', ConditionExpression: '#status=:from', ExpressionAttributeNames: { '#status': 'status', '#group': 'group' }, ExpressionAttributeValues: { ':s': to, ':from': from, ':a': at } } };
     const seat = { Delete: { TableName: this.table, Key: { pk: `SEAT#${order.seatId}` }, ConditionExpression: '#owner=:o', ExpressionAttributeNames: { '#owner': 'owner' }, ExpressionAttributeValues: { ':o': order.id } } };
     try { await this.client.send(new TransactWriteCommand({ TransactItems: [update, seat] })); } catch (e) { if (e.name !== 'TransactionCanceledException') throw e; }
   }
