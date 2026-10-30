@@ -15,7 +15,7 @@
   "secondInstalmentDue": "2027-01-31T21:59:59Z",
   "secondReminderDays": [14, 7],
   "currency": "EUR",
-  "prices": { "standard": 600, "premium": 700 },
+  "prices": { "standard": 650, "premium": 750 },
   "rows": [
     { "label": "1", "count": 14, "tier": "premium" },
     { "label": "2", "count": 14, "tier": "premium" },

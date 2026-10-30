@@ -18,10 +18,10 @@ try {
   await page.emulateMedia({reducedMotion:'reduce'});
   for (const selector of ['.topic-card','.hero-visual','.orbit']) assert.equal(await page.locator(selector).first().evaluate(e=>getComputedStyle(e).animationName),'none');
   await page.goto(base+'/booking.html',{waitUntil:'networkidle'}); await page.locator('[data-seat="101"]').click();
-  assert.equal(await page.locator('#selected-price').innerText(),'700 €');
+  assert.equal(await page.locator('#selected-price').innerText(),'750 €');
   assert.equal(await page.locator('#selected-price').evaluate(e=>e.getAnimations().length),0);
   await page.emulateMedia({reducedMotion:'no-preference'}); await page.locator('[data-seat="303"]').click();
-  assert.equal(await page.locator('#selected-price').innerText(),'600 €');
+  assert.equal(await page.locator('#selected-price').innerText(),'650 €');
   await page.waitForFunction(()=>document.querySelector('#selected-price').getAnimations().length===0);
   await page.setViewportSize({width:390,height:900}); await page.goto(base,{waitUntil:'networkidle'});
   assert.equal(await page.locator('.orbit').first().evaluate(e=>getComputedStyle(e).animationName),'none');

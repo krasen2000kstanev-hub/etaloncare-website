@@ -10,7 +10,7 @@
   const query = new URLSearchParams(location.search);
   const wanted = query.get('package') === 'premium' ? 'premium' : 'standard';
   document.getElementById('selected-package').textContent = wanted === 'premium' ? 'Премиум' : 'Стандарт';
-  document.getElementById('selected-price').textContent = wanted === 'premium' ? '700 €' : '600 €';
+  document.getElementById('selected-price').textContent = wanted === 'premium' ? '750 €' : '650 €';
   function message(text, type = '') { status.textContent = text; status.className = `form-status ${type}`; }
   function updateButton() { reserveButton.disabled = !live || !selected || busy; }
   function draw() {
@@ -23,7 +23,7 @@
       seats.filter(s => s.row === row).forEach(seat => {
         const button = document.createElement('button'); button.type = 'button'; button.className = `seat ${seat.tier}`;
         button.textContent = String(seat.number); button.dataset.seat = seat.id;
-        button.setAttribute('aria-label', `Ред ${seat.row}, място ${seat.number}, ${seat.tier === 'premium' ? 'Премиум, 700 евро' : 'Стандарт, 600 евро'}${seat.available ? '' : ', заето'}`);
+        button.setAttribute('aria-label', `Ред ${seat.row}, място ${seat.number}, ${seat.tier === 'premium' ? 'Премиум, 750 евро' : 'Стандарт, 650 евро'}${seat.available ? '' : ', заето'}`);
         button.setAttribute('aria-pressed', String(selected?.id === seat.id)); button.disabled = !seat.available || busy;
         button.addEventListener('click', () => {
           if (busy) return;
@@ -32,7 +32,7 @@
           document.getElementById('selected-label').textContent = `Ред ${seat.row} · Място ${seat.number}${live ? '' : ' · примерен избор'}`;
           document.getElementById('selected-package').textContent = seat.tier === 'premium' ? 'Премиум' : 'Стандарт';
           const price = document.getElementById('selected-price');
-          const nextPrice = seat.tier === 'premium' ? '700 €' : '600 €';
+          const nextPrice = seat.tier === 'premium' ? '750 €' : '650 €';
           const changed = price.textContent !== nextPrice;
           price.textContent = nextPrice;
           if (changed && !matchMedia('(prefers-reduced-motion: reduce)').matches) {

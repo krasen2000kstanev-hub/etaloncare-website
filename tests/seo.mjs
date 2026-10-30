@@ -8,7 +8,7 @@ assert.match(html, /<title>[^<]{30,90}<\/title>/);
 assert.match(html, /name="description" content="[^"]{100,200}"/);
 const schema = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
 assert.equal(schema.startDate, '2027-03-21'); assert.equal(schema.endDate, '2027-03-22'); assert.equal(schema.maximumAttendeeCapacity, 126);
-assert.deepEqual(schema.offers.map(o => o.price), ['600', '700']); assert.ok(!('aggregateRating' in schema));
+assert.deepEqual(schema.offers.map(o => o.price), ['650', '750']); assert.ok(!('aggregateRating' in schema));
 assert.equal(schema.url, html.match(/rel="canonical" href="([^"]+)"/)[1]);
 const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]); assert.equal(new Set(ids).size, ids.length);
 for (const match of html.matchAll(/(?:src|href)="([^"]+)"/g)) {

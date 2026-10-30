@@ -25,7 +25,7 @@ test('registration stays closed until date, layout, terms and payment are ready'
 });
 test('server calculates the correct package price and does not expose attendees', async () => {
   const { store, service } = setup(); const data = input('101'); data.total = 1;
-  const order = await service.create(data); assert.equal(order.total, 700); assert.equal(order.checkout.fields.AMOUNT, '700.00');
+  const order = await service.create(data); assert.equal(order.total, 750); assert.equal(order.checkout.fields.AMOUNT, '750.00');
   const availability = await service.availability(); assert.equal(availability.seats.filter(s => !s.available).length, 1); assert.ok(!JSON.stringify(availability).includes(data.email)); assert.ok(!JSON.stringify(availability).includes(data.name)); store.close();
 });
 test('30 simultaneous requests for one seat yield exactly one reservation', async () => {
@@ -119,7 +119,7 @@ test('notify list validates input, honours honeypot and deduplicates by email', 
 test('request mode records the seat without card data or a bank', async () => {
   const { store, service } = setup({ paymentMode: 'request' }); service.payment = new Borica({});
   const { cardholderName, billingAddress, ...data } = input('101');
-  const order = await service.create(data); assert.equal(order.status, 'requested'); assert.equal(order.total, 700); assert.equal(order.checkout, undefined);
+  const order = await service.create(data); assert.equal(order.status, 'requested'); assert.equal(order.total, 750); assert.equal(order.checkout, undefined);
   assert.equal((await service.create(data)).reference, order.reference);
   const availability = await service.availability(); assert.equal(availability.paymentMode, 'request'); assert.equal(availability.registrationOpen, true); assert.equal(availability.seats.find(s => s.id === '101').available, false);
   await assert.rejects(service.create({ ...input('101') }), { status: 409 });
@@ -145,7 +145,7 @@ function requestSetup(start = '2026-11-02T12:00:00Z') {
 }
 test('confirmation and day 10 reminder go out once, with bank data and both amounts', async () => {
   const { store, service, sent, request, at } = requestSetup(); await service.create(request('101'));
-  assert.equal(sent.length, 1); assert.match(sent[0].subject, /Заявката ви е приета/); assert.match(sent[0].text, /BG00TEST/); assert.match(sent[0].text, /700 €/); assert.match(sent[0].text, /350 €/); assert.match(sent[0].text, /ред 1, място 1/); assert.match(sent[0].text, /31\.01\.2027/);
+  assert.equal(sent.length, 1); assert.match(sent[0].subject, /Заявката ви е приета/); assert.match(sent[0].text, /BG00TEST/); assert.match(sent[0].text, /750 €/); assert.match(sent[0].text, /375 €/); assert.match(sent[0].text, /ред 1, място 1/); assert.match(sent[0].text, /31\.01\.2027/);
   at('2026-11-11T12:00:00Z'); await service.reconcile(); assert.equal(sent.length, 1);
   at('2026-11-12T13:00:00Z'); await service.reconcile(); assert.equal(sent.length, 2); assert.match(sent[1].subject, /Напомняне/);
   await service.reconcile(); assert.equal(sent.length, 2);
@@ -155,7 +155,7 @@ test('confirmation and day 10 reminder go out once, with bank data and both amou
 test('deposit gets capture mail, two reminders, then forfeits the seat and keeps the deposit', async () => {
   const { store, service, sent, request, mark, at } = requestSetup(); const data = request('301'); await service.create(data); sent.length = 0;
   await mark(data.requestId, 'deposit'); at('2026-11-20T13:00:00Z'); await service.reconcile();
-  assert.equal(sent.length, 1); assert.match(sent[0].subject, /капарирано/); assert.match(sent[0].text, /300 €/); assert.equal((await store.occupied()).length, 1);
+  assert.equal(sent.length, 1); assert.match(sent[0].subject, /капарирано/); assert.match(sent[0].text, /325 €/); assert.equal((await store.occupied()).length, 1);
   at('2027-01-16T12:00:00Z'); await service.reconcile(); assert.equal(sent.length, 1);
   at('2027-01-18T12:00:00Z'); await service.reconcile(); await service.reconcile(); assert.equal(sent.length, 2); assert.match(sent[1].subject, /втората вноска/);
   at('2027-01-25T12:00:00Z'); await service.reconcile(); assert.equal(sent.length, 3); assert.match(sent[2].subject, /една седмица/);
@@ -169,7 +169,7 @@ test('fully paid order keeps its seat with no reminders', async () => {
 });
 test('late request is asked for the full amount only', async () => {
   const { store, service, sent, request } = requestSetup('2027-01-20T12:00:00Z'); await service.create(request('303'));
-  assert.match(sent[0].text, /цялата сума 600 €/); assert.doesNotMatch(sent[0].text, /вноска/); store.close();
+  assert.match(sent[0].text, /цялата сума 650 €/); assert.doesNotMatch(sent[0].text, /вноска/); store.close();
 });
 test('mail failure keeps the reservation and retries on the next run', async () => {
   const { store, service, sent, request } = requestSetup(); const ok = service.mailer.send; service.mailer.send = async () => { throw new Error('down'); };

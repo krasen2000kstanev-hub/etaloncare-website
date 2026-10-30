@@ -34,8 +34,8 @@ try {
     await page.goto(`${base}/booking.html?package=premium`, { waitUntil: 'networkidle' });
     assert.equal(await page.locator('.seat').count(), 126); assert.equal(await page.locator('.seat.premium').count(), 28);
     assert.equal(await page.locator('#reserve-button').isEnabled(), false); assert.equal(await page.locator('input[name=email]').isEnabled(), false);
-    await page.locator('[data-seat="101"]').click(); assert.equal(await page.locator('#selected-price').innerText(), '700 €'); assert.match(await page.locator('#form-status').innerText(), /Не е създадена резервация/);
-    await page.locator('[data-seat="303"]').click(); assert.equal(await page.locator('#selected-price').innerText(), '600 €');
+    await page.locator('[data-seat="101"]').click(); assert.equal(await page.locator('#selected-price').innerText(), '750 €'); assert.match(await page.locator('#form-status').innerText(), /Не е създадена резервация/);
+    await page.locator('[data-seat="303"]').click(); assert.equal(await page.locator('#selected-price').innerText(), '650 €');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `Booking overflows at ${width}`);
     const bookingAxe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
     report.push({ page: 'booking', width, accessibility: bookingAxe.violations.map(v => ({ id: v.id, impact: v.impact, elements: v.nodes.map(n => n.target) })) });

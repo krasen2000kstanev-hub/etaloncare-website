@@ -27,7 +27,7 @@ try {
   await page.route('https://3dsgate-dev.borica.bg/cgi-bin/cgi_link', async route => {
     // Intercept before any network request: no real bank or real payment is contacted.
     const fields = Object.fromEntries(new URLSearchParams(route.request().postData()));
-    assert.equal(fields.AMOUNT, '600.00'); assert.equal(fields.CURRENCY, 'EUR');
+    assert.equal(fields.AMOUNT, '650.00'); assert.equal(fields.CURRENCY, 'EUR');
     assert.ok(verify('RSA-SHA256', Buffer.from(macString(fields, ['TERMINAL','TRTYPE','AMOUNT','CURRENCY','ORDER','TIMESTAMP','NONCE','RFU'])), merchant.publicKey, Buffer.from(fields.P_SIGN, 'hex')));
     const order = await store.byBank(fields.ORDER);
     const reply = { ACTION:'0',RC:'00',APPROVAL:'123456',TERMINAL:fields.TERMINAL,TRTYPE:'1',AMOUNT:fields.AMOUNT,CURRENCY:'EUR',ORDER:fields.ORDER,RRN:'123456789012',INT_REF:'1234567890123456',NONCE:fields.NONCE,TIMESTAMP:'20261102120001',PARES_STATUS:'Y',ECI:'05' };
