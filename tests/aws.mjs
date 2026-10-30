@@ -14,7 +14,7 @@ process.env.AWS_REGION = deployment.region; process.env.AWS_PROFILE = deployment
 const store = new DynamoStore(deployment.TableName); store.seatIds = seatPlan(config).map(s => s.id);
 const payment = { ready: true, config: { terminal: 'TESTONLY' }, checkout: () => ({ url: 'https://example.invalid', fields: {} }) };
 const clock = () => Date.parse('2026-11-02T12:00:00Z');
-const service = new Service({ store, payment, config: { ...config, registrationEnabled: true, seatPlanApproved: true, termsApproved: true }, clock });
+const service = new Service({ store, payment, config: { ...config, paymentMode: 'card', registrationEnabled: true, seatPlanApproved: true, termsApproved: true }, clock });
 const requests = Array.from({ length: 5 }, () => ({ seatId: '310', name: 'TEST ONLY', email: 'test@example.com', phone: '+359888000000', cardholderName: 'TEST ONLY', billingAddress: 'Test fixture, not real address', consent: true, requestId: randomUUID(), token: randomBytes(32).toString('hex') }));
 const source = 'qa-' + randomUUID();
 const created = [];

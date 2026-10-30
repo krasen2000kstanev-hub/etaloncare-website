@@ -11,7 +11,7 @@ const baseConfig = JSON.parse(await readFile(new URL('../backend/event.json', im
 const merchant = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const gateway = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const payment = new Borica({ mode: 'test', terminal: 'V1234567', merchant: '1234567890', name: 'ETALON CARE', privateKey: merchant.privateKey.export({ type: 'pkcs8', format: 'pem' }), publicKey: gateway.publicKey.export({ type: 'spki', format: 'pem' }), backref: 'https://etaloncare.com/api/payment/callback', siteUrl: 'https://etaloncare.com' });
-function setup(extra = {}) { const store = new SqliteStore(); const config = { ...baseConfig, registrationEnabled: true, seatPlanApproved: true, termsApproved: true, ...extra }; const service = new Service({ store, payment, config, clock: () => Date.parse('2026-11-02T12:00:00Z') }); return { store, service }; }
+function setup(extra = {}) { const store = new SqliteStore(); const config = { ...baseConfig, paymentMode: 'card', registrationEnabled: true, seatPlanApproved: true, termsApproved: true, ...extra }; const service = new Service({ store, payment, config, clock: () => Date.parse('2026-11-02T12:00:00Z') }); return { store, service }; }
 function input(seatId = '301') { return { seatId, name: 'Мария Иванова', email: 'test@example.com', phone: '+359888123456', cardholderName: 'MARIA IVANOVA', billingAddress: 'Sofia, Example street 1', consent: true, requestId: randomUUID(), token: randomBytes(32).toString('hex') }; }
 function bankFields(order, changes = {}) {
   const fields = { ACTION: '0', RC: '00', APPROVAL: '123456', TERMINAL: payment.config.terminal, TRTYPE: '1', AMOUNT: `${order.total}.00`, CURRENCY: 'EUR', ORDER: order.bankOrder, RRN: '123456789012', INT_REF: '1234567890123456', PARES_STATUS: 'Y', ECI: '05', TIMESTAMP: '20261102120001', NONCE: order.nonce, ...changes };
@@ -73,7 +73,7 @@ test('status query checks its nonce and releases only after the guard time', asy
 test('missed callback is reconciled against signed bank status', async () => {
   const { store, service } = setup(); const result = await service.create(input()); const order = await store.get(result.reference);
   service.payment = Object.create(payment); service.payment.query = async (_, nonce) => bankFields(order, { TRTYPE: '90', TRAN_TRTYPE: '1', NONCE: nonce });
-  service.clock = () => Date.parse('2026-11-02T12:17:00Z'); assert.deepEqual(await service.reconcile(), { checked: 1, unresolved: 0 }); assert.equal((await store.get(order.id)).status, 'paid'); store.close();
+  service.clock = () => Date.parse('2026-11-02T12:17:00Z'); assert.deepEqual(await service.reconcile(), { checked: 1, unresolved: 0, expired: 0 }); assert.equal((await store.get(order.id)).status, 'paid'); store.close();
 });
 test('per-source reservation limit is shared and enforced', async () => {
   const { store, service } = setup(); for (let i = 1; i <= 5; i++) await service.create(input(`30${i}`), 'same-source');
@@ -115,4 +115,23 @@ test('notify list validates input, honours honeypot and deduplicates by email', 
   await service.notify({ name: 'Мария Иванова', email: 'a@b.bg', consent: true });
   assert.deepEqual(store.db.prepare('SELECT email, name FROM subscribers').all().map(r => ({ ...r })), [{ email: 'a@b.bg', name: 'Мария Иванова' }]);
   store.close();
+});
+test('request mode records the seat without card data or a bank', async () => {
+  const { store, service } = setup({ paymentMode: 'request' }); service.payment = new Borica({});
+  const { cardholderName, billingAddress, ...data } = input('101');
+  const order = await service.create(data); assert.equal(order.status, 'requested'); assert.equal(order.total, 700); assert.equal(order.checkout, undefined);
+  assert.equal((await service.create(data)).reference, order.reference);
+  const availability = await service.availability(); assert.equal(availability.paymentMode, 'request'); assert.equal(availability.registrationOpen, true); assert.equal(availability.seats.find(s => s.id === '101').available, false);
+  await assert.rejects(service.create({ ...input('101') }), { status: 409 });
+  assert.deepEqual(await store.pending(), []); assert.deepEqual(await service.reconcile(), { checked: 0, unresolved: 0, expired: 0 }); store.close();
+});
+test('unpaid requests free the seat after 14 days, marked ones stay', async () => {
+  const { store, service } = setup({ paymentMode: 'request' }); service.payment = new Borica({}); const start = Date.parse('2026-11-02T12:00:00Z'); let now = start; service.clock = () => now;
+  const { cardholderName, billingAddress, ...unpaid } = input('301'); const { cardholderName: c2, billingAddress: b2, ...paid } = input('302');
+  await service.create(unpaid); await service.create(paid);
+  const marked = await store.get(paid.requestId); store.db.prepare('UPDATE orders SET data=? WHERE id=?').run(JSON.stringify({ ...marked, status: 'deposit' }), paid.requestId);
+  now = start + 14 * 86400000 - 1000; assert.equal((await service.reconcile()).expired, 0); assert.equal((await store.occupied()).length, 2);
+  now = start + 14 * 86400000 + 1000; assert.equal((await service.reconcile()).expired, 1); assert.deepEqual(await store.occupied(), ['302']);
+  assert.equal((await store.get(unpaid.requestId)).status, 'expired'); assert.equal((await store.get(paid.requestId)).status, 'deposit'); assert.equal((await service.reconcile()).expired, 0);
+  const { cardholderName: c3, billingAddress: b3, ...again } = input('301'); assert.equal((await service.create(again)).status, 'requested'); store.close();
 });

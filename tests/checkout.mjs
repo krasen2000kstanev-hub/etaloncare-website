@@ -9,7 +9,7 @@ import { Borica, macString, responseString } from '../backend/borica.mjs';
 import { makeHandler } from '../backend/http.mjs';
 const merchant = generateKeyPairSync('rsa', { modulusLength: 2048 }), bank = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const payment = new Borica({ mode: 'test', terminal: 'V1234567', merchant: '1234567890', name: 'ETALON CARE', privateKey: merchant.privateKey.export({ type: 'pkcs8', format: 'pem' }), publicKey: bank.publicKey.export({ type: 'spki', format: 'pem' }), backref: 'https://example.com/api/payment/callback', siteUrl: 'https://example.com' });
-const config = { ...JSON.parse(await readFile('backend/event.json', 'utf8')), registrationEnabled: true, seatPlanApproved: true, termsApproved: true };
+const config = { ...JSON.parse(await readFile('backend/event.json', 'utf8')), paymentMode: 'card', registrationEnabled: true, seatPlanApproved: true, termsApproved: true };
 const store = new SqliteStore(); const service = new Service({ store, payment, config, clock: () => Date.parse('2026-11-02T12:00:00Z') });
 const base = 'http://127.0.0.1:4173', handle = makeHandler(service, base);
 let server;

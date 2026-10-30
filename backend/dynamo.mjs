@@ -27,6 +27,13 @@ export class DynamoStore {
     await this.client.send(new UpdateCommand({ TableName: this.table, Key: { pk: `NOTIFY#${email}` }, UpdateExpression: 'SET #group=:g, email=:e, #name=:n, createdAt=if_not_exists(createdAt, :c)', ExpressionAttributeNames: { '#group': 'group', '#name': 'name' }, ExpressionAttributeValues: { ':g': 'notify', ':e': email, ':n': name, ':c': createdAt } }));
   }
   async pending() { return this.query('pending'); }
+  async requested() { return this.query('requested'); }
+  // Условието за статус пази платена заявка, ако организаторът я е отбелязал междувременно.
+  async expire(order, at) {
+    const update = { Update: { TableName: this.table, Key: { pk: `ORDER#${order.id}` }, UpdateExpression: 'SET #status=:s, #group=:s, expiredAt=:a', ConditionExpression: '#status=:requested', ExpressionAttributeNames: { '#status': 'status', '#group': 'group' }, ExpressionAttributeValues: { ':s': 'expired', ':requested': 'requested', ':a': at } } };
+    const seat = { Delete: { TableName: this.table, Key: { pk: `SEAT#${order.seatId}` }, ConditionExpression: '#owner=:o', ExpressionAttributeNames: { '#owner': 'owner' }, ExpressionAttributeValues: { ':o': order.id } } };
+    try { await this.client.send(new TransactWriteCommand({ TransactItems: [update, seat] })); } catch (e) { if (e.name !== 'TransactionCanceledException') throw e; }
+  }
   async limit(source, minute, maximum) {
     try {
       await this.client.send(new UpdateCommand({ TableName: this.table, Key: { pk: `LIMIT#${minute}#${source}` }, UpdateExpression: 'SET expiresAt = :ttl ADD hits :one', ConditionExpression: 'attribute_not_exists(hits) OR hits < :max', ExpressionAttributeValues: { ':ttl': (minute + 5) * 60, ':one': 1, ':max': maximum } }));
@@ -37,7 +44,7 @@ export class DynamoStore {
     const put = item => ({ Put: { TableName: this.table, Item: item, ConditionExpression: 'attribute_not_exists(pk)' } });
     try {
       await this.client.send(new TransactWriteCommand({ TransactItems: [
-        put({ pk: `ORDER#${order.id}`, group: 'pending', ...order }),
+        put({ pk: `ORDER#${order.id}`, group: order.status, ...order }),
         put({ pk: `SEAT#${order.seatId}`, seatId: order.seatId, owner: order.id }),
         put({ pk: `BANK#${order.bankOrder}`, owner: order.id })
       ] })); return 'ok';

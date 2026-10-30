@@ -9,6 +9,18 @@ export class SqliteStore {
   async occupied() { return this.db.prepare('SELECT id FROM seats').all().map(r => r.id); }
   async subscribe({ email, name, createdAt }) { this.db.prepare('INSERT INTO subscribers VALUES(?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name').run(email, name, createdAt); }
   async pending() { return this.db.prepare('SELECT data FROM orders').all().map(r => JSON.parse(r.data)).filter(o => o.status === 'pending'); }
+  async requested() { return this.db.prepare('SELECT data FROM orders').all().map(r => JSON.parse(r.data)).filter(o => o.status === 'requested'); }
+  async expire(order, at) {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const current = this.get(order.id);
+      if (current.status === 'requested') {
+        this.db.prepare('UPDATE orders SET data=? WHERE id=?').run(JSON.stringify({ ...current, status: 'expired', expiredAt: at }), order.id);
+        this.db.prepare('DELETE FROM seats WHERE id=? AND owner=?').run(order.seatId, order.id);
+      }
+      this.db.exec('COMMIT');
+    } catch (error) { this.db.exec('ROLLBACK'); throw error; }
+  }
   async limit(source, minute, maximum) {
     this.db.prepare('DELETE FROM limits WHERE CAST(substr(id,1,instr(id,\':\')-1) AS INTEGER) < ?').run(minute - 5);
     const row = this.db.prepare('INSERT INTO limits(id,count) VALUES(?,1) ON CONFLICT(id) DO UPDATE SET count=count+1 RETURNING count').get(`${minute}:${source}`);

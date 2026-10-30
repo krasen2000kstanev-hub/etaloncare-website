@@ -58,10 +58,12 @@
       if (selected && !seats.find(s => s.id === selected.id)?.available) { selected = null; message('Мястото вече не е свободно. Изберете друго.', 'error'); }
       if (data.planApproved) document.getElementById('seat-help').textContent = data.planDescription;
       if (live) {
-        document.getElementById('booking-notice').textContent = 'Изберете свободно място и подайте заявка. Окончателното потвърждение е след плащане.';
-        form.querySelectorAll('input:not([name=website])').forEach(input => { input.disabled = false; });
+        const requests = data.paymentMode === 'request';
+        if (!requests) form.querySelectorAll('[data-card-field]').forEach(field => { field.hidden = false; });
+        document.getElementById('booking-notice').textContent = requests ? 'Изберете свободно място и оставете данните си. Мястото се пази 14 дни, а данните за банков превод ще получите на посочения имейл.' : 'Изберете свободно място и подайте заявка. Окончателното потвърждение е след плащане.';
+        form.querySelectorAll('input:not([name=website])').forEach(input => { input.disabled = Boolean(input.closest('[hidden]')); });
         reserveButton.textContent = 'Подай заявка за участие';
-        document.getElementById('payment-hint').textContent = 'Ще продължите към защитената страница на UniCredit/BORICA. Данни за карта не се въвеждат на този сайт.';
+        document.getElementById('payment-hint').textContent = requests ? 'Сега не се плаща онлайн. Мястото се пази 14 дни, а данните за банков превод ще получите на имейл.' : 'Ще продължите към защитената страница на UniCredit/BORICA. Данни за карта не се въвеждат на този сайт.';
       }
       draw(); updateButton();
     } catch { live = false; updateButton(); message('Връзката със системата за места не е достъпна. Опитайте отново по-късно.', 'error'); }
@@ -80,6 +82,13 @@
         if (!token) { token = Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem(`etalon:${requestId}`, token); }
       } catch { throw new Error('За проверка на плащането е необходимо временно съхранение в браузъра. Разрешете го или се свържете с организатора.'); }
       const result = await request('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...values, consent: values.consent === 'on', seatId: selected.id, requestId, token }) });
+      if (result.status === 'requested') {
+        const seat = selected; selected = null; requestId = null; form.reset();
+        document.getElementById('selected-label').textContent = 'Изберете място от схемата';
+        await refresh();
+        message(`Заявката е приета. Запазихме ред ${seat.row}, място ${seat.number} за 14 дни. Ще получите данни за банков превод на ${values.email}.`, 'success');
+        return;
+      }
       if (!['https://3dsgate-dev.borica.bg/cgi-bin/cgi_link', 'https://3dsgate.borica.bg/cgi-bin/cgi_link'].includes(result.checkout?.url)) throw new Error('Платежната система не е достъпна.');
       const checkout = document.createElement('form'); checkout.method = 'POST'; checkout.action = result.checkout.url;
       for (const [key, value] of Object.entries(result.checkout.fields)) { const input = document.createElement('input'); input.type = 'hidden'; input.name = key; input.value = value; checkout.append(input); }
@@ -87,7 +96,7 @@
     } catch (error) {
       message(error.code === 409 ? 'Мястото вече е избрано от друг участник. Изберете друго.' : error.message || 'Възникна грешка. Опитайте отново.', 'error');
       if (error.code === 409) { selected = null; requestId = null; await refresh(); }
-    } finally { busy = false; updateButton(); }
+    } finally { busy = false; draw(); updateButton(); }
   });
   form.querySelectorAll('.form-field').forEach((field, index) => field.style.setProperty('--field-index', index));
   draw(); refresh();

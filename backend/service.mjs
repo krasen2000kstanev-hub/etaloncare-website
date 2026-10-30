@@ -9,19 +9,21 @@ export function seatPlan(config) {
 }
 export class Service {
   constructor({ store, payment, config, clock = () => Date.now() }) { this.store = store; this.payment = payment; this.config = config; this.clock = clock; this.seats = seatPlan(config); }
-  open() { const now = this.clock(); return this.config.registrationEnabled && this.config.seatPlanApproved && this.config.termsApproved && this.payment.ready && now >= Date.parse(this.config.registrationOpens) && now < Date.parse(this.config.registrationCloses); }
+  // Заявка без картово плащане: мястото се пази requestDays дни или докато организаторът не смени статуса след превод.
+  get requests() { return this.config.paymentMode === 'request'; }
+  open() { const now = this.clock(); return this.config.registrationEnabled && this.config.seatPlanApproved && this.config.termsApproved && (this.requests || this.payment.ready) && now >= Date.parse(this.config.registrationOpens) && now < Date.parse(this.config.registrationCloses); }
   async availability() {
     const occupied = new Set(await this.store.occupied());
-    return { seats: this.seats.map(s => ({ ...s, available: !occupied.has(s.id) })), registrationOpen: Boolean(this.open()), planApproved: this.config.seatPlanApproved, planDescription: this.config.planDescription };
+    return { seats: this.seats.map(s => ({ ...s, available: !occupied.has(s.id) })), registrationOpen: Boolean(this.open()), paymentMode: this.requests ? 'request' : 'card', planApproved: this.config.seatPlanApproved, planDescription: this.config.planDescription };
   }
   validate(input) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new ApiError(400, 'Невалидна заявка.');
-    const required = ['seatId', 'name', 'email', 'phone', 'cardholderName', 'billingAddress', 'requestId', 'token'];
+    const required = ['seatId', 'name', 'email', 'phone', ...(this.requests ? [] : ['cardholderName', 'billingAddress']), 'requestId', 'token'];
     if (required.some(key => typeof input[key] !== 'string')) throw new ApiError(400, 'Попълнете всички задължителни полета.');
     const clean = Object.fromEntries(required.map(key => [key, input[key].trim()]));
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clean.requestId) || !/^[0-9a-f]{64}$/i.test(clean.token)) throw new ApiError(400, 'Невалиден идентификатор.');
     if (clean.name.length < 3 || clean.name.length > 100 || clean.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean.email) || !/^[+\d][\d ()-]{6,24}$/.test(clean.phone)) throw new ApiError(400, 'Проверете името, имейла и телефона.');
-    if (!/^[A-Za-z][A-Za-z .'-]{2,44}$/.test(clean.cardholderName) || clean.billingAddress.length < 5 || clean.billingAddress.length > 50) throw new ApiError(400, 'Името на картодържателя трябва да е на латиница. Проверете адреса.');
+    if (!this.requests && (!/^[A-Za-z][A-Za-z .'-]{2,44}$/.test(clean.cardholderName) || clean.billingAddress.length < 5 || clean.billingAddress.length > 50)) throw new ApiError(400, 'Името на картодържателя трябва да е на латиница. Проверете адреса.');
     if (input.consent !== true || input.website) throw new ApiError(400, 'Необходимо е приемане на условията.');
     if (Object.values(clean).some(v => /[\u0000-\u001f\u007f]/.test(v))) throw new ApiError(400, 'Невалидни символи.');
     const seat = this.seats.find(s => s.id === clean.seatId); if (!seat) throw new ApiError(400, 'Невалидно място.');
@@ -36,13 +38,13 @@ export class Service {
     // Reservation rate limits are enforced in shared storage, never only in the browser.
     if (!await this.store.limit(digest(source), Math.floor(this.clock() / 60000), 5)) throw new ApiError(429, 'Твърде много заявки. Опитайте след минута.');
     const createdAt = Math.floor(this.clock() / 1000);
-    const order = { ...data, status: 'pending', createdAt, termsVersion: this.config.termsVersion, termsAcceptedAt: createdAt, nonce: randomBytes(16).toString('hex').toUpperCase(), timestamp: new Date(this.clock()).toISOString().replace(/[-:TZ.]/g, '').slice(0, 14) };
+    const order = { ...data, status: this.requests ? 'requested' : 'pending', createdAt, termsVersion: this.config.termsVersion, termsAcceptedAt: createdAt, nonce: randomBytes(16).toString('hex').toUpperCase(), timestamp: new Date(this.clock()).toISOString().replace(/[-:TZ.]/g, '').slice(0, 14) };
     for (let attempt = 0; attempt < 5; attempt++) {
       order.bankOrder = String(randomInt(100000, 1000000));
       // Sign before claiming a seat; a broken bank configuration cannot strand an order.
-      const checkout = this.payment.checkout(order);
+      const checkout = this.requests ? undefined : this.payment.checkout(order);
       const result = await this.store.reserve(order);
-      if (result === 'ok') return { reference: order.id, seatId: order.seatId, total: order.total, checkout };
+      if (result === 'ok') return { reference: order.id, seatId: order.seatId, total: order.total, status: order.status, checkout };
       if (result === 'bankCollision') continue;
       const duplicate = await this.store.get(data.id);
       if (duplicate) return this.repeat(duplicate, data);
@@ -52,6 +54,7 @@ export class Service {
   }
   repeat(order, data) {
     if (!safeEqual(order.tokenHash, data.tokenHash) || !safeEqual(order.fingerprint, data.fingerprint)) throw new ApiError(409, 'Заявката е променена. Изберете мястото отново.');
+    if (order.status === 'requested') return { reference: order.id, seatId: order.seatId, total: order.total, status: order.status };
     if (order.status !== 'pending' || this.clock() / 1000 - order.createdAt > 900) throw new ApiError(409, 'Тази заявка вече е обработена или е изтекла. Свържете се с организатора.');
     return { reference: order.id, seatId: order.seatId, total: order.total, checkout: this.payment.checkout(order) };
   }
@@ -90,8 +93,17 @@ export class Service {
     }
     return order; // Unknown or nonfinal results keep the seat unavailable until reconciliation.
   }
+  async expireRequests() {
+    const limit = this.clock() / 1000 - this.config.requestDays * 86400; let expired = 0;
+    for (const order of await this.store.requested()) {
+      if (order.createdAt >= limit) continue;
+      await this.store.expire(order, Math.floor(this.clock() / 1000)); expired++;
+    }
+    return expired;
+  }
   async reconcile() {
-    if (!this.payment.ready) return { checked: 0, unresolved: 0 };
+    const expired = await this.expireRequests();
+    if (!this.payment.ready) return { checked: 0, unresolved: 0, expired };
     const pending = await this.store.pending(); let checked = 0, unresolved = 0;
     for (const order of pending) {
       if (this.clock() / 1000 - order.createdAt < 960) continue;
@@ -103,6 +115,6 @@ export class Service {
         checked++; if (result.status === 'pending') unresolved++;
       } catch { unresolved++; }
     }
-    return { checked, unresolved };
+    return { checked, unresolved, expired };
   }
 }
