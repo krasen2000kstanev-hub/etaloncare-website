@@ -50,7 +50,8 @@ This file is a project memory summary. README.md and QA.md remain the authoritat
 ## Synchronization — 26.10.2026
 - Live public site: https://etaloncare.com/ is served by GitHub Pages from `main` (pages job in qa.yml); DNS is in Cloudflare; mail and cPanel stay at SuperHosting.
 - Book site: https://book.etaloncare.com/ is a separate PHP app on AWS EC2 behind Cloudflare (Full strict rule for that host only).
-- Venue: Интер Експо Център, зала Витоша, бул. „Цариградско шосе“ 147, София (home, FAQ, booking, privacy, calendar, Event schema).
+- Venue: Интер Експо Център, зала Витоша, бул. „Цариградско шосе“ 147, София (home, FAQ, booking, privacy, calendar, Event schema, assets/social.jpg).
+- Share image: assets/social.jpg is a poster with the venue and a QR code to https://etaloncare.com/; bump its `?v=` in index.html when it changes, because social networks cache it.
 - Hero facts include ЕЗИК (simultaneous Bulgarian translation, lecture in English); FAQ mentions the translation again.
 - Speaker card uses assets/doug-schoon-chair.webp?v=2 (seated photo, cut out, 4x Real-ESRGAN + Lanczos blend); on desktop the card height follows the text column and the photo is contained at the bottom.
 - Topic labels: 01 / НАУЧНИТЕ ФАКТИ, 02 / НОКЪТЯТ, 03 / ХИМИЯТА, 04 / БЕЗОПАСНОСТТА, 05 / ПРОБЛЕМИТЕ (15px). Card 04 text is about factors affecting safety and quality of professional work.
