@@ -59,5 +59,5 @@ This file is a project memory summary. README.md and QA.md remain the authoritat
 - CI QA job timeout is 20 minutes; a Playwright install timeout cancels the run and skips the Pages deploy.
 - Home page has a back-to-top link (.to-top) shown after 600px of scroll.
 - Bump the `?v=` query on styles.css/app.js in the HTML pages whenever they change; browsers cache them for 4 hours.
-- Registration remains disabled; the booking screen is an example map with 8 rows and 3 blocks of 5 seats.
+- Registration remains disabled; the booking screen shows the venue plan (Floorplan 30.10.2026): rows 1-9, 14 seats each, aisles after seats 4 and 10, 126 in total; rows 1-2 are the 28 premium seats (assumed, the plan does not mark them). Seat ids are row + two-digit number, e.g. 105.
 - Graph artifacts are tracked in `graph.html`, `graph.json`, and `GRAPH_REPORT.md`; do not commit secrets, personal data, orders, or local deployment settings.

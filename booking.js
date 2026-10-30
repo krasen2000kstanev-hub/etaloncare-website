@@ -6,7 +6,7 @@
   const rows = document.getElementById('seat-rows');
   let selected = null, busy = false, live = false;
   // ponytail: one attendee per order; group registration needs a reviewed multi-seat transaction.
-  let seats = Array.from({ length: 120 }, (_, i) => ({ id: `${String.fromCharCode(65 + Math.floor(i / 15))}${String(i % 15 + 1).padStart(2, '0')}`, row: String.fromCharCode(65 + Math.floor(i / 15)), number: i % 15 + 1, tier: Math.floor(i / 15) === 0 ? 'premium' : 'standard', available: true }));
+  let seats = Array.from({ length: 126 }, (_, i) => { const row = String(Math.floor(i / 14) + 1), number = i % 14 + 1; return { id: `${row}${String(number).padStart(2, '0')}`, row, number, tier: i < 28 ? 'premium' : 'standard', available: true }; });
   const query = new URLSearchParams(location.search);
   const wanted = query.get('package') === 'premium' ? 'premium' : 'standard';
   document.getElementById('selected-package').textContent = wanted === 'premium' ? 'Премиум' : 'Стандарт';

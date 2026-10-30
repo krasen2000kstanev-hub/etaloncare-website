@@ -12,7 +12,7 @@ const merchant = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const gateway = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const payment = new Borica({ mode: 'test', terminal: 'V1234567', merchant: '1234567890', name: 'ETALON CARE', privateKey: merchant.privateKey.export({ type: 'pkcs8', format: 'pem' }), publicKey: gateway.publicKey.export({ type: 'spki', format: 'pem' }), backref: 'https://etaloncare.com/api/payment/callback', siteUrl: 'https://etaloncare.com' });
 function setup(extra = {}) { const store = new SqliteStore(); const config = { ...baseConfig, registrationEnabled: true, seatPlanApproved: true, termsApproved: true, ...extra }; const service = new Service({ store, payment, config, clock: () => Date.parse('2026-11-02T12:00:00Z') }); return { store, service }; }
-function input(seatId = 'C01') { return { seatId, name: 'Мария Иванова', email: 'test@example.com', phone: '+359888123456', cardholderName: 'MARIA IVANOVA', billingAddress: 'Sofia, Example street 1', consent: true, requestId: randomUUID(), token: randomBytes(32).toString('hex') }; }
+function input(seatId = '301') { return { seatId, name: 'Мария Иванова', email: 'test@example.com', phone: '+359888123456', cardholderName: 'MARIA IVANOVA', billingAddress: 'Sofia, Example street 1', consent: true, requestId: randomUUID(), token: randomBytes(32).toString('hex') }; }
 function bankFields(order, changes = {}) {
   const fields = { ACTION: '0', RC: '00', APPROVAL: '123456', TERMINAL: payment.config.terminal, TRTYPE: '1', AMOUNT: `${order.total}.00`, CURRENCY: 'EUR', ORDER: order.bankOrder, RRN: '123456789012', INT_REF: '1234567890123456', PARES_STATUS: 'Y', ECI: '05', TIMESTAMP: '20261102120001', NONCE: order.nonce, ...changes };
   fields.P_SIGN = sign('RSA-SHA256', Buffer.from(responseString(fields)), gateway.privateKey).toString('hex').toUpperCase(); return fields;
@@ -24,7 +24,7 @@ test('registration stays closed until date, layout, terms and payment are ready'
   const { store, service } = setup(); service.payment = new Borica({}); await assert.rejects(service.create(input()), { status: 403 }); store.close();
 });
 test('server calculates the correct package price and does not expose attendees', async () => {
-  const { store, service } = setup(); const data = input('A01'); data.total = 1;
+  const { store, service } = setup(); const data = input('101'); data.total = 1;
   const order = await service.create(data); assert.equal(order.total, 700); assert.equal(order.checkout.fields.AMOUNT, '700.00');
   const availability = await service.availability(); assert.equal(availability.seats.filter(s => !s.available).length, 1); assert.ok(!JSON.stringify(availability).includes(data.email)); assert.ok(!JSON.stringify(availability).includes(data.name)); store.close();
 });
@@ -35,7 +35,7 @@ test('30 simultaneous requests for one seat yield exactly one reservation', asyn
 test('simultaneous retry uses one immutable order and the same signed checkout', async () => {
   const { store, service } = setup(); const data = input(); const results = await Promise.all(Array.from({ length: 4 }, () => service.create(data)));
   assert.equal(new Set(results.map(r => r.checkout.fields.ORDER)).size, 1); assert.equal((await store.occupied()).length, 1);
-  await assert.rejects(service.create({ ...data, seatId: 'C02' }), { status: 409 }); await assert.rejects(service.create({ ...data, token: '0'.repeat(64) }), { status: 409 }); store.close();
+  await assert.rejects(service.create({ ...data, seatId: '302' }), { status: 409 }); await assert.rejects(service.create({ ...data, token: '0'.repeat(64) }), { status: 409 }); store.close();
 });
 test('input validation rejects unknown seats, missing consent, bad names and honeypot', async () => {
   const { store, service } = setup();
@@ -49,7 +49,7 @@ test('public order lookup requires secret token and returns no PII', async () =>
 });
 test('valid signed bank result confirms the seat and remains idempotent', async () => {
   const { store, service } = setup(); const result = await service.create(input()); const order = await store.get(result.reference);
-  assert.equal((await service.bankResult(bankFields(order))).status, 'paid'); await service.bankResult(bankFields(order)); assert.equal((await store.get(order.id)).status, 'paid'); assert.deepEqual(await store.occupied(), ['C01']);
+  assert.equal((await service.bankResult(bankFields(order))).status, 'paid'); await service.bankResult(bankFields(order)); assert.equal((await store.get(order.id)).status, 'paid'); assert.deepEqual(await store.occupied(), ['301']);
   await service.bankResult(bankFields(order, { ACTION: '2', RC: '05' })); assert.equal((await store.get(order.id)).status, 'paid'); store.close();
 });
 test('forged signature or altered bank amount never marks an order paid', async () => {
@@ -76,8 +76,8 @@ test('missed callback is reconciled against signed bank status', async () => {
   service.clock = () => Date.parse('2026-11-02T12:17:00Z'); assert.deepEqual(await service.reconcile(), { checked: 1, unresolved: 0 }); assert.equal((await store.get(order.id)).status, 'paid'); store.close();
 });
 test('per-source reservation limit is shared and enforced', async () => {
-  const { store, service } = setup(); for (let i = 1; i <= 5; i++) await service.create(input(`C0${i}`), 'same-source');
-  await assert.rejects(service.create(input('C06'), 'same-source'), { status: 429 }); store.close();
+  const { store, service } = setup(); for (let i = 1; i <= 5; i++) await service.create(input(`30${i}`), 'same-source');
+  await assert.rejects(service.create(input('306'), 'same-source'), { status: 429 }); store.close();
 });
 test('BORICA MAC_GENERAL matches documented UTF-8 length-prefix example', () => {
   const fields = { TERMINAL: 'V1800001', TRTYPE: '1', AMOUNT: '9.00', CURRENCY: 'BGN', ORDER: '154744', TIMESTAMP: '20201012124757', NONCE: '9EADBD70C0A5AFBAD3DF405902602F79' };

@@ -15,14 +15,14 @@ const store = new DynamoStore(deployment.TableName); store.seatIds = seatPlan(co
 const payment = { ready: true, config: { terminal: 'TESTONLY' }, checkout: () => ({ url: 'https://example.invalid', fields: {} }) };
 const clock = () => Date.parse('2026-11-02T12:00:00Z');
 const service = new Service({ store, payment, config: { ...config, registrationEnabled: true, seatPlanApproved: true, termsApproved: true }, clock });
-const requests = Array.from({ length: 5 }, () => ({ seatId: 'C10', name: 'TEST ONLY', email: 'test@example.com', phone: '+359888000000', cardholderName: 'TEST ONLY', billingAddress: 'Test fixture, not real address', consent: true, requestId: randomUUID(), token: randomBytes(32).toString('hex') }));
+const requests = Array.from({ length: 5 }, () => ({ seatId: '310', name: 'TEST ONLY', email: 'test@example.com', phone: '+359888000000', cardholderName: 'TEST ONLY', billingAddress: 'Test fixture, not real address', consent: true, requestId: randomUUID(), token: randomBytes(32).toString('hex') }));
 const source = 'qa-' + randomUUID();
 const created = [];
 try {
   const results = await Promise.allSettled(requests.map(r => service.create(r, source)));
   assert.equal(results.filter(r => r.status === 'fulfilled').length, 1);
   for (const request of requests) { const order = await store.get(request.requestId); if (order) created.push(order); }
-  assert.equal(created.length, 1); assert.deepEqual(await store.occupied(), ['C10']);
+  assert.equal(created.length, 1); assert.deepEqual(await store.occupied(), ['310']);
   await store.finalize(created[0], { status: 'paid', paymentReference: 'TEST', gatewayReference: 'TEST', finalizedAt: Math.floor(clock() / 1000) });
   assert.equal((await store.get(created[0].id)).status, 'paid');
   console.log('AWS DynamoDB transaction: five concurrent requests, exactly one order/seat/bank mapping; finalization passed.');

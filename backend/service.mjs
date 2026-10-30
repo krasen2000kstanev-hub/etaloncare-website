@@ -4,7 +4,7 @@ const digest = value => createHash('sha256').update(value).digest('hex');
 const safeEqual = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 export function seatPlan(config) {
   const seats = config.rows.flatMap(row => Array.from({ length: row.count }, (_, i) => ({ id: `${row.label}${String(i + 1).padStart(2, '0')}`, row: row.label, number: i + 1, tier: row.tier })));
-  if (seats.length !== 100 || new Set(seats.map(s => s.id)).size !== 100 || seats.filter(s => s.tier === 'premium').length !== 20 || seats.some(s => !['standard', 'premium'].includes(s.tier))) throw new Error('Seat plan requires 100 unique seats, including 20 premium');
+  if (seats.length !== 126 || new Set(seats.map(s => s.id)).size !== 126 || seats.filter(s => s.tier === 'premium').length !== 28 || seats.some(s => !['standard', 'premium'].includes(s.tier))) throw new Error('Seat plan requires 126 unique seats, including 28 premium');
   return seats;
 }
 export class Service {

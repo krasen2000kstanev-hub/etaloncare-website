@@ -38,11 +38,11 @@ try {
   });
   await page.goto(`${base}/booking.html`); await page.locator('input[name=email]').waitFor({ state: 'visible' });
   await page.waitForFunction(() => !document.querySelector('input[name=email]').disabled);
-  await page.locator('[data-seat="C03"]').click();
+  await page.locator('[data-seat="303"]').click();
   await page.getByLabel('Име и фамилия').fill('Тест Участник'); await page.getByLabel('Имейл', { exact: true }).fill('test@example.com'); await page.getByLabel('Телефон').fill('+359888123456');
   await page.getByLabel('Име на картодържателя').fill('TEST ATTENDEE'); await page.getByLabel('Адрес за плащане').fill('Sofia, Example street 1'); await page.locator('input[name=consent]').check();
   await page.getByRole('button',{name:'Подай заявка за участие'}).click();
   await page.waitForURL('**/payment.html#order=*'); await page.getByText('Плащането е потвърдено.',{exact:false}).waitFor();
-  assert.ok(bankReached); assert.deepEqual(await store.occupied(),['C03']);
+  assert.ok(bankReached); assert.deepEqual(await store.occupied(),['303']);
   console.log('Checkout: browser → atomic reservation → signed request → intercepted bank → verified callback → paid status passed. No bank network request was made.');
 } finally { await browser.close(); store.close(); server?.kill(); }
