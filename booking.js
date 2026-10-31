@@ -44,8 +44,10 @@
       }); rows.append(line);
     });
   }
-  async function request(path, options = {}) {
+  // Заявките са идемпотентни по requestId, затова при 429 е безопасно да се опита пак.
+  async function request(path, options = {}, attempt = 0) {
     const response = await fetch(`${config.apiBase}${path}`, { ...options, signal: AbortSignal.timeout(15000) });
+    if (response.status === 429 && attempt < 3) { await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); return request(path, options, attempt + 1); }
     const data = await response.json();
     if (!response.ok) { const error = new Error(data.message || 'Заявката не може да бъде обработена.'); error.code = response.status; throw error; }
     return data;
