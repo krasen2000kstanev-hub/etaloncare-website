@@ -41,6 +41,15 @@ try {
     const bookingAxe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
     report.push({ page: 'booking', width, accessibility: bookingAxe.violations.map(v => ({ id: v.id, impact: v.impact, elements: v.nodes.map(n => n.target) })) });
     await page.screenshot({ path: `output/qa/booking-${width}.png`, fullPage: true });
+    await page.goto(`${base}/en/booking.html?package=premium`, { waitUntil: 'networkidle' });
+    assert.equal(await page.locator('#selected-package').innerText(), 'Premium'); assert.equal(await page.locator('.seat').count(), 126);
+    await page.locator('[data-seat="101"]').click(); assert.equal(await page.locator('#selected-price').innerText(), '750 €'); assert.match(await page.locator('#selected-label').innerText(), /Row 1 · Seat 1/);
+    assert.match(await page.locator('.lang-switch a[lang=bg]').getAttribute('href'), /booking\.html\?package=premium$/);
+    report.push({ page: 'en-booking', width, accessibility: (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations.map(v => ({ id: v.id, impact: v.impact, elements: v.nodes.map(n => n.target) })) });
+    await page.goto(`${base}/en/index.html`, { waitUntil: 'networkidle' });
+    assert.match(await page.locator('h1').innerText(), /DOUG SCHOON/); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `English home overflows at ${width}`);
+    report.push({ page: 'en-home', width, accessibility: (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations.map(v => ({ id: v.id, impact: v.impact, elements: v.nodes.map(n => n.target) })) });
+    await page.screenshot({ path: `output/qa/en-home-${width}.png` });
     await context.close();
   }
   const reduced = await browser.newPage({ reducedMotion: 'reduce' }); await reduced.goto(base);

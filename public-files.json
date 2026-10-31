@@ -15,5 +15,9 @@
   "CNAME",
   ".nojekyll",
   "assets/banner-himiya-noktite-bg.jpg",
-  "booking-120.js"
+  "booking-120.js",
+  "en/index.html",
+  "en/booking.html",
+  "en/payment.html",
+  "en/privacy.html"
 ]

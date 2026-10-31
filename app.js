@@ -15,9 +15,10 @@
   const updateHeader = () => { header?.classList.toggle('scrolled', scrollY > 12); if (toTop) toTop.hidden = scrollY < 600; };
   addEventListener('scroll', updateHeader, { passive: true }); updateHeader();
   const ready = window.ETALON_CONFIG.registrationEnabled && window.ETALON_CONFIG.seatPlanApproved && Date.now() >= Date.parse('2026-11-01T00:00:00+02:00');
+  const choose = document.documentElement.lang === 'en' ? 'Choose a seat' : 'Избери място';
   if (ready) {
-    document.querySelectorAll('[data-registration-cta]').forEach(link => { link.href = 'booking.html'; link.querySelector('[data-cta-label]').textContent = 'Избери място'; });
-    document.querySelectorAll('[data-package-cta] [data-cta-label]').forEach(label => { label.textContent = 'Избери място'; });
+    document.querySelectorAll('[data-registration-cta]').forEach(link => { link.href = 'booking.html'; link.querySelector('[data-cta-label]').textContent = choose; });
+    document.querySelectorAll('[data-package-cta] [data-cta-label]').forEach(label => { label.textContent = choose; });
   }
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   if (!reducedMotion.matches && 'IntersectionObserver' in window) {

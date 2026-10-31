@@ -52,6 +52,9 @@ This file is a project memory summary. README.md and QA.md remain the authoritat
 - Book site: https://book.etaloncare.com/ is a separate PHP app on AWS EC2 behind Cloudflare (Full strict rule for that host only).
 - Venue: Интер Експо Център, зала Витоша, бул. „Цариградско шосе“ 147, София (home, FAQ, booking, privacy, calendar, Event schema, assets/social.jpg).
 - Share image: assets/social.jpg is a poster with the venue and a QR code to https://etaloncare.com/; bump its `?v=` in index.html when it changes, because social networks cache it.
+- Official English conference name: The Science of Nails. Bulgarian keeps both „Науката за ноктите“ and „НАУКАТА ЗАД НОКТИТЕ“ by owner decision.
+- AWS: function etalon-preview-api, table etalon-conference-Table-4X50HEI4CT5D, no AWS CLI on the owner's machine; code goes up as output/lambda.zip through the console. Emails stay off until SMTP_* and BANK_* are set in Lambda and the owner says so.
+- English version: en/index.html, en/booking.html, en/payment.html, en/privacy.html, with a fixed BG/EN switch (.lang-switch) on every page. Shared scripts read `document.documentElement.lang`. Any text change must be made in both languages. The form sends `lang`; the order stores it and backend/emails.mjs writes every email in that language.
 - Hero facts include ЕЗИК (simultaneous Bulgarian translation, lecture in English); FAQ mentions the translation again.
 - Speaker card uses assets/doug-schoon-chair.webp?v=2 (seated photo, cut out, 4x Real-ESRGAN + Lanczos blend); on desktop the card height follows the text column and the photo is contained at the bottom.
 - Topic labels: 01 / НАУЧНИТЕ ФАКТИ, 02 / НОКЪТЯТ, 03 / ХИМИЯТА, 04 / БЕЗОПАСНОСТТА, 05 / ПРОБЛЕМИТЕ (15px). Card 04 text is about factors affecting safety and quality of professional work.

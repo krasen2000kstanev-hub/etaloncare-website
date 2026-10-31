@@ -7,6 +7,7 @@ import { SqliteStore } from '../backend/sqlite.mjs';
 import { Borica, macString, responseString } from '../backend/borica.mjs';
 import { makeHandler } from '../backend/http.mjs';
 import { DynamoStore } from '../backend/dynamo.mjs';
+import { renderEmail } from '../backend/emails.mjs';
 import { serveStatic } from '../backend/static.mjs';
 const baseConfig = JSON.parse(await readFile(new URL('../backend/event.json', import.meta.url)));
 const merchant = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -182,4 +183,15 @@ test('seat lookup stays within the DynamoDB limit of 100 keys per batch', async 
   const store = new DynamoStore('table'); store.seatIds = seatPlan(baseConfig).map(s => s.id); const sizes = [];
   store.client = { send: async command => { const keys = command.input.RequestItems.table.Keys; sizes.push(keys.length); assert.ok(keys.length <= 100); return { Responses: { table: keys.filter(k => k.pk === 'SEAT#914').map(() => ({ seatId: '914' })) } }; } };
   assert.deepEqual(await store.occupied(), ['914']); assert.deepEqual(sizes, [100, 26]);
+});
+test('emails follow the language the form was filled in', async () => {
+  const { store, service, sent, request, mark, at } = requestSetup();
+  const english = { ...request('101'), name: 'Maria Ivanova', lang: 'en' }, bulgarian = request('102');
+  await service.create(english); await service.create(bulgarian);
+  assert.match(sent[0].subject, /request has been received/); assert.match(sent[0].text, /row 1, seat 1/); assert.match(sent[0].text, /31 January 2027/); assert.doesNotMatch(sent[0].text, /[А-Яа-я]{4,}/);
+  assert.match(sent[1].subject, /Заявката ви е приета/); assert.match(sent[1].text, /ред 1, място 2/);
+  await mark(english.requestId, 'deposit'); at('2026-11-05T12:00:00Z'); await service.reconcile();
+  assert.match(sent.at(-1).subject, /deposit has been received/); assert.match(sent.at(-1).text, /375 €/); assert.equal((await store.get(english.requestId)).lang, 'en');
+  for (const key of ['firstReminder', 'secondEarly', 'secondLate', 'paid', 'expired', 'forfeited']) assert.doesNotMatch(renderEmail(key, await store.get(english.requestId), baseConfig, service.bank).text, /[А-Яа-я]{4,}/);
+  store.close();
 });

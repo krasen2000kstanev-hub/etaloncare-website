@@ -29,7 +29,7 @@ export class Service {
     if (Object.values(clean).some(v => /[\u0000-\u001f\u007f]/.test(v))) throw new ApiError(400, 'Невалидни символи.');
     const seat = this.seats.find(s => s.id === clean.seatId); if (!seat) throw new ApiError(400, 'Невалидно място.');
     const { token, requestId, ...details } = clean;
-    return { ...details, id: requestId, tokenHash: digest(token), total: this.config.prices[seat.tier], tier: seat.tier, fingerprint: digest(JSON.stringify(details)) };
+    return { ...details, lang: input.lang === 'en' ? 'en' : 'bg', id: requestId, tokenHash: digest(token), total: this.config.prices[seat.tier], tier: seat.tier, fingerprint: digest(JSON.stringify(details)) };
   }
   async create(input, source = 'unknown') {
     if (!this.open()) throw new ApiError(403, 'Регистрацията все още не е отворена.');
