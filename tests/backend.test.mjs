@@ -6,6 +6,7 @@ import { Service, seatPlan } from '../backend/service.mjs';
 import { SqliteStore } from '../backend/sqlite.mjs';
 import { Borica, macString, responseString } from '../backend/borica.mjs';
 import { makeHandler } from '../backend/http.mjs';
+import { DynamoStore } from '../backend/dynamo.mjs';
 import { serveStatic } from '../backend/static.mjs';
 const baseConfig = JSON.parse(await readFile(new URL('../backend/event.json', import.meta.url)));
 const merchant = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -176,4 +177,9 @@ test('mail failure keeps the reservation and retries on the next run', async () 
   const data = request('304'); const order = await service.create(data); assert.equal(order.status, 'requested'); assert.equal((await store.occupied()).length, 1); assert.equal(sent.length, 0);
   assert.equal((await service.reconcile()).emails, 0); service.mailer.send = ok;
   assert.equal((await service.reconcile()).emails, 1); assert.equal(sent.length, 1); store.close();
+});
+test('seat lookup stays within the DynamoDB limit of 100 keys per batch', async () => {
+  const store = new DynamoStore('table'); store.seatIds = seatPlan(baseConfig).map(s => s.id); const sizes = [];
+  store.client = { send: async command => { const keys = command.input.RequestItems.table.Keys; sizes.push(keys.length); assert.ok(keys.length <= 100); return { Responses: { table: keys.filter(k => k.pk === 'SEAT#914').map(() => ({ seatId: '914' })) } }; } };
+  assert.deepEqual(await store.occupied(), ['914']); assert.deepEqual(sizes, [100, 26]);
 });

@@ -17,7 +17,7 @@ try {
   await page.waitForFunction(()=>getComputedStyle(document.querySelector('.package')).transform !== 'none');
   await page.emulateMedia({reducedMotion:'reduce'});
   for (const selector of ['.topic-card','.hero-visual','.orbit']) assert.equal(await page.locator(selector).first().evaluate(e=>getComputedStyle(e).animationName),'none');
-  await page.goto(base+'/booking.html',{waitUntil:'networkidle'}); await page.locator('[data-seat="101"]').click();
+  await page.route('**/config.js', route => route.fulfill({ contentType: 'text/javascript', body: "window.ETALON_CONFIG={apiBase:'',registrationEnabled:false,seatPlanApproved:false,preview:false};" })); await page.goto(base+'/booking.html',{waitUntil:'networkidle'}); await page.locator('[data-seat="101"]').click();
   assert.equal(await page.locator('#selected-price').innerText(),'750 €');
   assert.equal(await page.locator('#selected-price').evaluate(e=>e.getAnimations().length),0);
   await page.emulateMedia({reducedMotion:'no-preference'}); await page.locator('[data-seat="303"]').click();

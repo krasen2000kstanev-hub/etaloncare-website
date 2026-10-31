@@ -14,13 +14,17 @@ export class DynamoStore {
   // Public seat reads use the base partition and a strong read, not an eventually consistent index.
   async occupied() {
     const { BatchGetCommand } = await import('@aws-sdk/lib-dynamodb');
-    let remaining = this.seatIds.map(id => ({ pk: `SEAT#${id}` })), occupied = [];
-    for (let attempt = 0; remaining.length && attempt < 3; attempt++) {
-      const result = await this.client.send(new BatchGetCommand({ RequestItems: { [this.table]: { Keys: remaining, ConsistentRead: true } } }));
-      occupied.push(...(result.Responses?.[this.table] || []).map(item => item.seatId));
-      remaining = result.UnprocessedKeys?.[this.table]?.Keys || [];
+    const occupied = [];
+    // BatchGetItem приема най-много 100 ключа наведнъж.
+    for (let start = 0; start < this.seatIds.length; start += 100) {
+      let remaining = this.seatIds.slice(start, start + 100).map(id => ({ pk: `SEAT#${id}` }));
+      for (let attempt = 0; remaining.length && attempt < 3; attempt++) {
+        const result = await this.client.send(new BatchGetCommand({ RequestItems: { [this.table]: { Keys: remaining, ConsistentRead: true } } }));
+        occupied.push(...(result.Responses?.[this.table] || []).map(item => item.seatId));
+        remaining = result.UnprocessedKeys?.[this.table]?.Keys || [];
+      }
+      if (remaining.length) throw new Error('Seat availability unavailable');
     }
-    if (remaining.length) throw new Error('Seat availability unavailable');
     return occupied;
   }
   async subscribe({ email, name, createdAt }) {

@@ -60,10 +60,10 @@
       if (live) {
         const requests = data.paymentMode === 'request';
         if (!requests) form.querySelectorAll('[data-card-field]').forEach(field => { field.hidden = false; });
-        document.getElementById('booking-notice').textContent = requests ? 'Изберете свободно място и оставете данните си. Мястото се пази 14 дни, а данните за банков превод ще получите на посочения имейл.' : 'Изберете свободно място и подайте заявка. Окончателното потвърждение е след плащане.';
+        document.getElementById('booking-notice').textContent = requests ? 'Изберете свободно място и оставете данните си. Запазвате мястото и в рамките на 24 часа ще получите имейл с данните за плащане.' : 'Изберете свободно място и подайте заявка. Окончателното потвърждение е след плащане.';
         form.querySelectorAll('input:not([name=website])').forEach(input => { input.disabled = Boolean(input.closest('[hidden]')); });
         reserveButton.textContent = 'Подай заявка за участие';
-        document.getElementById('payment-hint').textContent = requests ? 'Сега не се плаща онлайн. Мястото се пази 14 дни, а данните за банков превод ще получите на имейл.' : 'Ще продължите към защитената страница на UniCredit/BORICA. Данни за карта не се въвеждат на този сайт.';
+        document.getElementById('payment-hint').textContent = requests ? 'Сега не се плаща онлайн. Запазвате мястото, а в рамките на 24 часа ще получите имейл с данните за плащане.' : 'Ще продължите към защитената страница на UniCredit/BORICA. Данни за карта не се въвеждат на този сайт.';
       }
       draw(); updateButton();
     } catch { live = false; updateButton(); message('Връзката със системата за места не е достъпна. Опитайте отново по-късно.', 'error'); }
@@ -86,7 +86,7 @@
         const seat = selected; selected = null; requestId = null; form.reset();
         document.getElementById('selected-label').textContent = 'Изберете място от схемата';
         await refresh();
-        message(`Заявката е приета. Запазихме ред ${seat.row}, място ${seat.number} за 14 дни. Ще получите данни за банков превод на ${values.email}.`, 'success');
+        message(`Заявката е приета. Запазихме ред ${seat.row}, място ${seat.number}. В рамките на 24 часа ще получите имейл с данните за плащане на ${values.email}.`, 'success');
         return;
       }
       if (!['https://3dsgate-dev.borica.bg/cgi-bin/cgi_link', 'https://3dsgate.borica.bg/cgi-bin/cgi_link'].includes(result.checkout?.url)) throw new Error('Платежната система не е достъпна.');
