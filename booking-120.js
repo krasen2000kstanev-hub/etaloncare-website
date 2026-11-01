@@ -74,7 +74,7 @@
   }
   let requestId = null;
   const invoice = form.elements.invoice, invoiceField = document.getElementById('invoice-field');
-  function syncInvoice() { invoiceField.hidden = !invoice.checked; form.elements.invoiceDetails.disabled = !invoice.checked; }
+  function syncInvoice() { invoiceField.hidden = !invoice.checked; invoiceField.querySelectorAll('input').forEach(input => { input.disabled = !invoice.checked; }); }
   invoice.addEventListener('change', syncInvoice);
   form.addEventListener('submit', async event => {
     event.preventDefault();
@@ -82,6 +82,7 @@
     busy = true; updateButton(); message(en ? 'Sending your request…' : 'Изпращаме заявката…');
     requestId ||= crypto.randomUUID();
     const values = Object.fromEntries(new FormData(form));
+    if (invoice.checked) values.invoiceDetails = [...invoiceField.querySelectorAll('input')].filter(input => input.value.trim()).map(input => `${input.dataset.label}: ${input.value.trim()}`).join('\n');
     try {
       let token;
       try {
