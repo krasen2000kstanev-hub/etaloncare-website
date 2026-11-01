@@ -147,7 +147,7 @@ function requestSetup(start = '2026-11-02T12:00:00Z') {
 }
 test('confirmation and day 10 reminder go out once, with bank data and both amounts', async () => {
   const { store, service, sent, request, at } = requestSetup(); await service.create(request('101'));
-  assert.equal(sent.length, 1); assert.match(sent[0].subject, /Заявката ви е приета/); assert.match(sent[0].text, /BG00TEST/); assert.match(sent[0].text, /750 €/); assert.match(sent[0].text, /375 €/); assert.match(sent[0].text, /ред 1, място 1/); assert.match(sent[0].text, /31\.01\.2027/);
+  assert.equal(sent.length, 1); assert.match(sent[0].subject, /Ти запази мястото си/); assert.match(sent[0].text, /BG00TEST/); assert.match(sent[0].text, /750 €/); assert.match(sent[0].text, /375 €/); assert.match(sent[0].text, /ред 1, място 1/); assert.match(sent[0].text, /31\.01\.2027/); assert.match(sent[0].text, /половината сума от билета \(375 €\) или да заплатиш цялата \(750 €\)/); assert.match(sent[0].text, /Основание: Конференция, Мария Иванова/); assert.match(sent[0].text, /Грейт Уърк ООД/);
   at('2026-11-11T12:00:00Z'); await service.reconcile(); assert.equal(sent.length, 1);
   at('2026-11-12T13:00:00Z'); await service.reconcile(); assert.equal(sent.length, 2); assert.match(sent[1].subject, /Напомняне/);
   await service.reconcile(); assert.equal(sent.length, 2);
@@ -188,8 +188,8 @@ test('emails follow the language the form was filled in', async () => {
   const { store, service, sent, request, mark, at } = requestSetup();
   const english = { ...request('101'), name: 'Maria Ivanova', lang: 'en' }, bulgarian = request('102');
   await service.create(english); await service.create(bulgarian);
-  assert.match(sent[0].subject, /request has been received/); assert.match(sent[0].text, /row 1, seat 1/); assert.match(sent[0].text, /31 January 2027/); assert.doesNotMatch(sent[0].text, /[А-Яа-я]{4,}/);
-  assert.match(sent[1].subject, /Заявката ви е приета/); assert.match(sent[1].text, /ред 1, място 2/);
+  assert.match(sent[0].subject, /You have reserved your seat/); assert.match(sent[0].text, /half the ticket price \(375 €\)/); assert.match(sent[0].text, /row 1, seat 1/); assert.match(sent[0].text, /31 January 2027/); assert.doesNotMatch(sent[0].text, /[А-Яа-я]{4,}/);
+  assert.match(sent[1].subject, /Ти запази мястото си/); assert.match(sent[1].text, /ред 1, място 2/);
   await mark(english.requestId, 'deposit'); at('2026-11-05T12:00:00Z'); await service.reconcile();
   assert.match(sent.at(-1).subject, /deposit has been received/); assert.match(sent.at(-1).text, /375 €/); assert.equal((await store.get(english.requestId)).lang, 'en');
   for (const key of ['firstReminder', 'secondEarly', 'secondLate', 'paid', 'expired', 'forfeited']) assert.doesNotMatch(renderEmail(key, await store.get(english.requestId), baseConfig, service.bank).text, /[А-Яа-я]{4,}/);

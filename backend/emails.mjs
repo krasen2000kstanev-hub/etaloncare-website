@@ -22,18 +22,18 @@ export function emailsDue(order, config, now) {
 
 function renderEnglish(key, order, config, bank) {
   const seat = `row ${order.seatId.slice(0, -2)}, seat ${Number(order.seatId.slice(-2))}`;
-  const firstAmount = order.total * config.firstInstalmentPercent / 100, secondAmount = order.total - firstAmount, second = date(secondDeadline(config), 'en'), first = date(firstDeadline(order, config), 'en');
-  const transfer = `Bank transfer details:\nRecipient: ${bank.recipient}\nIBAN: ${bank.iban}\nBIC: ${bank.bic}\nPayment reference: Conference, ${seat}, ${order.name}`;
+  const half = order.total * config.firstInstalmentPercent / 100, rest = order.total - half, second = date(secondDeadline(config), 'en'), first = date(firstDeadline(order, config), 'en');
+  const transfer = `Pay by bank transfer using these details:\nIBAN: ${bank.iban}${bank.bic ? `\nBIC: ${bank.bic}` : ''}\nBank: UniCredit Bulbank\nRecipient: Great Work OOD\nPayment reference: Conference, ${order.name}`;
   const options = canSplit(order, config)
-    ? `You can pay the full amount of ${order.total} € or a deposit of ${firstAmount} € by ${first}. The second instalment of ${secondAmount} € is due by ${second}.`
-    : `Please pay the full amount of ${order.total} € by ${first}.`;
+    ? `You can secure your seat with a deposit of half the ticket price (${half} €) or pay the full amount (${order.total} €). The deadline is ${first}. If you pay the deposit, the remaining ${rest} € is due by ${second}.`
+    : `You can pay the full amount of ${order.total} € by ${first}.`;
   const lost = 'If you withdraw or do not pay, the seat is lost and the deposit is not refunded.';
   const texts = {
-    confirmation: ['Your request has been received', `We have reserved ${seat} for the conference “The Science of Nails” with Doug Schoon, 21–22 March 2027.\n\n${options}\n\n${transfer}\n\nIf we do not receive payment on time, the request expires and the seat is released.`],
-    firstReminder: ['Payment reminder', `Your request for ${seat} is still unpaid. ${options}\n\n${transfer}\n\nIf we do not receive payment on time, the request expires and the seat is released.`],
-    deposit: ['Your deposit has been received', `We have received your deposit of ${firstAmount} € for ${seat}.\n\nThe second instalment of ${secondAmount} € is due by ${second}. ${lost}\n\n${transfer}`],
-    secondEarly: ['Second instalment reminder', `The second instalment of ${secondAmount} € for ${seat} is due by ${second}. ${lost}\n\n${transfer}`],
-    secondLate: ['One week left for the second instalment', `The second instalment of ${secondAmount} € for ${seat} is due by ${second}. ${lost}\n\n${transfer}`],
+    confirmation: ['You have reserved your seat', `You have reserved your seat: ${seat}, for the conference “The Science of Nails” with Doug Schoon, 21–22 March 2027.\n\n${options}\n\n${transfer}\n\nIf we do not receive payment on time, the request expires and the seat is released.`],
+    firstReminder: ['Payment reminder', `Your seat (${seat}) is still unpaid. ${options}\n\n${transfer}\n\nIf we do not receive payment on time, the request expires and the seat is released.`],
+    deposit: ['Your deposit has been received', `We have received your deposit of ${half} € for ${seat}.\n\nThe remaining ${rest} € is due by ${second}. ${lost}\n\n${transfer}`],
+    secondEarly: ['Second instalment reminder', `The remaining ${rest} € for ${seat} is due by ${second}. ${lost}\n\n${transfer}`],
+    secondLate: ['One week left for the second instalment', `The remaining ${rest} € for ${seat} is due by ${second}. ${lost}\n\n${transfer}`],
     paid: ['Your payment has been received', `We have received full payment for ${seat}. We look forward to seeing you on 21–22 March 2027 at Inter Expo Center, Vitosha Hall, Sofia.`],
     expired: ['Your request has expired', `We did not receive payment on time and your request for ${seat} has expired. The seat has been released. If you would still like to attend, you can make a new request at https://etaloncare.com/en/booking.html.`],
     forfeited: ['Your seat has been released', `We did not receive the second instalment on time and your seat (${seat}) has been released. Under the terms, the deposit is not refunded.`]
@@ -45,21 +45,22 @@ function renderEnglish(key, order, config, bank) {
 export function renderEmail(key, order, config, bank) {
   if (order.lang === 'en') return renderEnglish(key, order, config, bank);
   const seat = `ред ${order.seatId.slice(0, -2)}, място ${Number(order.seatId.slice(-2))}`;
-  const firstAmount = order.total * config.firstInstalmentPercent / 100, second = date(secondDeadline(config)), first = date(firstDeadline(order, config));
-  const transfer = `Данни за банков превод:\nПолучател: ${bank.recipient}\nIBAN: ${bank.iban}\nBIC: ${bank.bic}\nОснование: Конференция, ${seat}, ${order.name}`;
+  const half = order.total * config.firstInstalmentPercent / 100, rest = order.total - half, second = date(secondDeadline(config)), first = date(firstDeadline(order, config));
+  const transfer = `С банков превод с тези данни:\nIBAN: ${bank.iban}${bank.bic ? `\nBIC: ${bank.bic}` : ''}\nБанка: УниКредит Булбанк\nПолучател: Грейт Уърк ООД\nОснование: Конференция, ${order.name}`;
   const options = canSplit(order, config)
-    ? `Можете да платите цялата сума ${order.total} € или първа вноска (капаро) ${firstAmount} € до ${first}. Втората вноска ${order.total - firstAmount} € е до ${second}.`
-    : `Моля, платете цялата сума ${order.total} € до ${first}.`;
+    ? `Можеш да капарираш мястото с половината сума от билета (${half} €) или да заплатиш цялата (${order.total} €). Срокът е до ${first}. Ако капарираш, останалите ${rest} € са до ${second}.`
+    : `Можеш да заплатиш цялата сума ${order.total} € до ${first}.`;
+  const lost = 'При отказ или неплащане мястото отпада, а капарото не се възстановява.';
   const texts = {
-    confirmation: ['Заявката ви е приета', `Запазихме ${seat} за конференцията „Науката за ноктите“ с Дъг Шун, 21–22 март 2027 г.\n\n${options}\n\n${transfer}\n\nАко не получим плащане в срок, заявката отпада и мястото се освобождава.`],
-    firstReminder: ['Напомняне за плащане', `Заявката ви за ${seat} все още е неплатена. ${options}\n\n${transfer}\n\nАко не получим плащане в срок, заявката отпада и мястото се освобождава.`],
-    deposit: ['Мястото ви е капарирано', `Получихме капарото ви ${firstAmount} € за ${seat}.\n\nВтората вноска ${order.total - firstAmount} € е до ${second}. При отказ или неплатена втора вноска мястото отпада, а капарото не се възстановява.\n\n${transfer}`],
-    secondEarly: ['Напомняне за втората вноска', `Втората вноска ${order.total - firstAmount} € за ${seat} е до ${second}. При отказ или неплащане мястото отпада, а капарото не се възстановява.\n\n${transfer}`],
-    secondLate: ['Остава една седмица за втората вноска', `Втората вноска ${order.total - firstAmount} € за ${seat} е до ${second}. При отказ или неплащане мястото отпада, а капарото не се възстановява.\n\n${transfer}`],
-    paid: ['Плащането е получено', `Получихме пълното плащане за ${seat}. Очакваме ви на 21–22 март 2027 г. в Интер Експо Център, зала Витоша, София.`],
-    expired: ['Заявката ви отпадна', `Не получихме плащане в срок и заявката ви за ${seat} отпадна. Мястото е освободено. Ако още искате да участвате, може да подадете нова заявка на https://etaloncare.com/booking.html.`],
-    forfeited: ['Мястото ви отпадна', `Не получихме втората вноска в срок и мястото ви (${seat}) отпадна. Съгласно условията капарото не се възстановява.`]
+    confirmation: ['Ти запази мястото си', `Ти запази мястото си: ${seat}, за конференцията „Науката за ноктите“ с Дъг Шун, 21–22 март 2027 г.\n\n${options}\n\n${transfer}\n\nАко не получим плащане в срок, заявката отпада и мястото се освобождава.`],
+    firstReminder: ['Напомняне за плащане', `Мястото ти (${seat}) все още е неплатено. ${options}\n\n${transfer}\n\nАко не получим плащане в срок, заявката отпада и мястото се освобождава.`],
+    deposit: ['Мястото ти е капарирано', `Получихме капарото ти ${half} € за ${seat}.\n\nОстаналите ${rest} € са до ${second}. ${lost}\n\n${transfer}`],
+    secondEarly: ['Напомняне за втората вноска', `Останалите ${rest} € за ${seat} са до ${second}. ${lost}\n\n${transfer}`],
+    secondLate: ['Остава една седмица за втората вноска', `Останалите ${rest} € за ${seat} са до ${second}. ${lost}\n\n${transfer}`],
+    paid: ['Плащането е получено', `Получихме пълното плащане за ${seat}. Очакваме те на 21–22 март 2027 г. в Интер Експо Център, зала Витоша, София.`],
+    expired: ['Заявката ти отпадна', `Не получихме плащане в срок и заявката ти за ${seat} отпадна. Мястото е освободено. Ако още искаш да участваш, можеш да подадеш нова заявка на https://etaloncare.com/booking.html.`],
+    forfeited: ['Мястото ти отпадна', `Не получихме втората вноска в срок и мястото ти (${seat}) отпадна. Съгласно условията капарото не се възстановява.`]
   };
   const [subject, body] = texts[key];
-  return { subject: `${subject} | Науката за ноктите`, text: `Здравейте, ${order.name},\n\n${body}\n\nЗа въпроси: info@etaloncare.com\nETALON CARE` };
+  return { subject: `${subject} | Науката за ноктите`, text: `Здравей, ${order.name},\n\n${body}\n\nЗа въпроси: info@etaloncare.com\nETALON CARE` };
 }
