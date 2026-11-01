@@ -20,12 +20,12 @@
   }
   // Имената идват от посетители, затова всичко се рисува само през textContent.
   function cell(row, text) { const td = document.createElement('td'); td.textContent = text; row.append(td); return td; }
-  function draw(orders) {
+  function draw(orders, held) {
     rows.replaceChildren();
     for (const order of orders) {
       const row = document.createElement('tr');
       cell(row, `Ред ${order.seatId.slice(0, -2)}, място ${Number(order.seatId.slice(-2))} (${order.tier === 'premium' ? 'Премиум' : 'Стандарт'})`);
-      cell(row, order.name);
+      const person = cell(row, order.name); if (order.invoice) { const invoice = document.createElement('small'); invoice.className = 'admin-invoice'; invoice.textContent = `Фактура: ${order.invoice}`; person.append(invoice); }
       const contact = cell(row, ''); for (const [scheme, value] of [['mailto:', order.email], ['tel:', order.phone]]) { const link = document.createElement('a'); link.href = scheme + value; link.textContent = value; contact.append(link); }
       cell(row, `${order.total} €${order.status === 'deposit' ? ` (капаро ${order.total / 2} €)` : ''}`);
       const state = cell(row, ''); const badge = document.createElement('span'); badge.className = `admin-badge ${order.status}`; badge.textContent = labels[order.status] || order.status; state.append(badge);
@@ -43,13 +43,13 @@
     if (!orders.length) { const row = document.createElement('tr'); cell(row, 'Още няма заявки.').colSpan = 8; rows.append(row); }
     const count = status => orders.filter(order => order.status === status).length;
     const taken = count('requested') + count('deposit') + count('paid');
-    document.getElementById('counts').textContent = `Заети места: ${taken} от 126 · Чакат плащане: ${count('requested')} · Капаро: ${count('deposit')} · Платени: ${count('paid')}`;
+    document.getElementById('counts').textContent = `Заети места: ${taken} от 126 · Запазени от нас: ${held} · Чакат плащане: ${count('requested')} · Капаро: ${count('deposit')} · Платени: ${count('paid')}`;
   }
   async function load() {
     show('Зареждам…');
     try {
       const data = await call('/api/admin/orders');
-      login.hidden = true; board.hidden = false; draw(data.orders); show('');
+      login.hidden = true; board.hidden = false; draw(data.orders, data.held); show('');
     } catch (error) {
       if (error.code === 401) logout('Ключът не е верен.'); else { board.hidden || show(error.message, 'error'); document.getElementById('login-status').textContent = error.message; }
     }

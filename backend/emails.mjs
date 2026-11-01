@@ -39,7 +39,7 @@ function renderEnglish(key, order, config, bank) {
     forfeited: ['Your seat has been released', `We did not receive the second instalment on time and your seat (${seat}) has been released. Under the terms, the deposit is not refunded.`]
   };
   const [subject, body] = texts[key];
-  return { subject: `${subject} | The Science of Nails`, text: `Hello ${order.name},\n\n${body}\n\nQuestions: info@etaloncare.com\nETALON CARE` };
+  return { subject: `${subject} | Conference with Doug Schoon`, text: `Hello ${order.name},\n\n${body}\n\nQuestions: info@etaloncare.com\nETALON CARE` };
 }
 
 export function renderEmail(key, order, config, bank) {
@@ -62,5 +62,5 @@ export function renderEmail(key, order, config, bank) {
     forfeited: ['Мястото ти отпадна', `Не получихме втората вноска в срок и мястото ти (${seat}) отпадна. Съгласно условията капарото не се възстановява.`]
   };
   const [subject, body] = texts[key];
-  return { subject: `${subject} | Науката за ноктите`, text: `Здравей, ${order.name},\n\n${body}\n\nЗа въпроси: info@etaloncare.com\nETALON CARE` };
+  return { subject: `${subject} | Конференция с Дъг Шун`, text: `Здравей, ${order.name},\n\n${body}\n\nЗа въпроси: info@etaloncare.com\nETALON CARE` };
 }

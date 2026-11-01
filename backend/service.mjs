@@ -12,10 +12,12 @@ export class Service {
   constructor({ store, payment, config, mailer, bank, adminToken, clock = () => Date.now() }) { this.adminToken = adminToken; this.store = store; this.payment = payment; this.config = config; this.mailer = mailer; this.bank = bank; this.clock = clock; this.seats = seatPlan(config); }
   // Заявка без картово плащане: мястото се пази requestDays дни или докато организаторът не смени статуса след превод.
   get requests() { return this.config.paymentMode === 'request'; }
+  // Места, запазени от организатора: за посетителите изглеждат заети.
+  held(id) { return (this.config.heldSeats || []).includes(id); }
   open() { const now = this.clock(); return this.config.registrationEnabled && this.config.seatPlanApproved && this.config.termsApproved && (this.requests || this.payment.ready) && now >= Date.parse(this.config.registrationOpens) && now < Date.parse(this.config.registrationCloses); }
   async availability() {
     const occupied = new Set(await this.store.occupied());
-    return { seats: this.seats.map(s => ({ ...s, available: !occupied.has(s.id) })), registrationOpen: Boolean(this.open()), paymentMode: this.requests ? 'request' : 'card', planApproved: this.config.seatPlanApproved, planDescription: this.config.planDescription };
+    return { seats: this.seats.map(s => ({ ...s, available: !occupied.has(s.id) && !this.held(s.id) })), registrationOpen: Boolean(this.open()), paymentMode: this.requests ? 'request' : 'card', planApproved: this.config.seatPlanApproved, planDescription: this.config.planDescription };
   }
   validate(input) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new ApiError(400, 'Невалидна заявка.');
@@ -28,7 +30,10 @@ export class Service {
     if (input.consent !== true || input.website) throw new ApiError(400, 'Необходимо е приемане на условията.');
     if (Object.values(clean).some(v => /[\u0000-\u001f\u007f]/.test(v))) throw new ApiError(400, 'Невалидни символи.');
     const seat = this.seats.find(s => s.id === clean.seatId); if (!seat) throw new ApiError(400, 'Невалидно място.');
-    const { token, requestId, ...details } = clean;
+    const { token, requestId, ...rest } = clean;
+    const invoice = input.invoice === true && typeof input.invoiceDetails === 'string' ? input.invoiceDetails.trim() : '';
+    if (input.invoice === true && (invoice.length < 5 || invoice.length > 500 || /[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f]/.test(invoice))) throw new ApiError(400, 'Напишете данните на фирмата за фактурата.');
+    const details = invoice ? { ...rest, invoice } : rest;
     return { ...details, lang: input.lang === 'en' ? 'en' : 'bg', id: requestId, tokenHash: digest(token), total: this.config.prices[seat.tier], tier: seat.tier, fingerprint: digest(JSON.stringify(details)) };
   }
   async create(input, source = 'unknown') {
@@ -36,6 +41,7 @@ export class Service {
     const data = this.validate(input);
     const existing = await this.store.get(data.id);
     if (existing) return this.repeat(existing, data);
+    if (this.held(data.seatId)) throw new ApiError(409, 'Мястото вече не е свободно.');
     // Reservation rate limits are enforced in shared storage, never only in the browser.
     if (!await this.store.limit(digest(source), Math.floor(this.clock() / 60000), 5)) throw new ApiError(429, 'Твърде много заявки. Опитайте след минута.');
     const createdAt = Math.floor(this.clock() / 1000);
@@ -109,8 +115,8 @@ export class Service {
   async adminOrders(token, source) {
     await this.authorize(token, source);
     const lists = await Promise.all(['requested', 'deposit', 'paid', 'expired', 'forfeited', 'cancelled'].map(status => this.store.byStatus(status)));
-    const orders = lists.flat().sort((a, b) => b.createdAt - a.createdAt).map(order => ({ id: order.id, seatId: order.seatId, tier: order.tier, name: order.name, email: order.email, phone: order.phone, total: order.total, status: order.status, lang: order.lang || 'bg', createdAt: order.createdAt, deadline: order.status === 'requested' ? order.createdAt + this.config.requestDays * 86400 : order.status === 'deposit' ? Math.floor(secondDeadline(this.config) / 1000) : null, actions: this.adminActions(order) }));
-    return { orders };
+    const orders = lists.flat().sort((a, b) => b.createdAt - a.createdAt).map(order => ({ id: order.id, seatId: order.seatId, tier: order.tier, name: order.name, invoice: order.invoice, email: order.email, phone: order.phone, total: order.total, status: order.status, lang: order.lang || 'bg', createdAt: order.createdAt, deadline: order.status === 'requested' ? order.createdAt + this.config.requestDays * 86400 : order.status === 'deposit' ? Math.floor(secondDeadline(this.config) / 1000) : null, actions: this.adminActions(order) }));
+    return { orders, held: (this.config.heldSeats || []).length };
   }
   async adminUpdate(id, action, token, source) {
     await this.authorize(token, source);

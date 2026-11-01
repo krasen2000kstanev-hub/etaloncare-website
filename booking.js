@@ -73,6 +73,9 @@
     } catch { live = false; updateButton(); message(en ? 'The seat system is not available right now. Please try again later.' : 'Връзката със системата за места не е достъпна. Опитайте отново по-късно.', 'error'); }
   }
   let requestId = null;
+  const invoice = form.elements.invoice, invoiceField = document.getElementById('invoice-field');
+  function syncInvoice() { invoiceField.hidden = !invoice.checked; form.elements.invoiceDetails.disabled = !invoice.checked; }
+  invoice.addEventListener('change', syncInvoice);
   form.addEventListener('submit', async event => {
     event.preventDefault();
     if (!live || !selected || busy || !form.reportValidity()) return;
@@ -85,9 +88,9 @@
         token = sessionStorage.getItem(`etalon:${requestId}`);
         if (!token) { token = Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem(`etalon:${requestId}`, token); }
       } catch { throw new Error(en ? 'Temporary browser storage is needed to check your request. Please allow it or contact the organiser.' : 'За проверка на плащането е необходимо временно съхранение в браузъра. Разрешете го или се свържете с организатора.'); }
-      const result = await request('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...values, consent: values.consent === 'on', seatId: selected.id, requestId, token, lang: en ? 'en' : 'bg' }) });
+      const result = await request('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...values, consent: values.consent === 'on', invoice: values.invoice === 'on', seatId: selected.id, requestId, token, lang: en ? 'en' : 'bg' }) });
       if (result.status === 'requested') {
-        const seat = selected; selected = null; requestId = null; form.reset();
+        const seat = selected; selected = null; requestId = null; form.reset(); syncInvoice();
         document.getElementById('selected-label').textContent = en ? 'Choose a seat on the plan' : 'Изберете място от схемата';
         await refresh();
         message(en ? `Your request has been received. We have reserved row ${seat.row}, seat ${seat.number}. You will receive an email with the payment details at ${values.email} within 24 hours.` : `Заявката е приета. Запазихме ред ${seat.row}, място ${seat.number}. В рамките на 24 часа ще получите имейл с данните за плащане на ${values.email}.`, 'success');

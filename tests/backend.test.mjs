@@ -28,7 +28,7 @@ test('registration stays closed until date, layout, terms and payment are ready'
 test('server calculates the correct package price and does not expose attendees', async () => {
   const { store, service } = setup(); const data = input('101'); data.total = 1;
   const order = await service.create(data); assert.equal(order.total, 750); assert.equal(order.checkout.fields.AMOUNT, '750.00');
-  const availability = await service.availability(); assert.equal(availability.seats.filter(s => !s.available).length, 1); assert.ok(!JSON.stringify(availability).includes(data.email)); assert.ok(!JSON.stringify(availability).includes(data.name)); store.close();
+  const availability = await service.availability(); assert.equal(availability.seats.filter(s => !s.available).length, 1 + baseConfig.heldSeats.length); assert.ok(!JSON.stringify(availability).includes(data.email)); assert.ok(!JSON.stringify(availability).includes(data.name)); store.close();
 });
 test('30 simultaneous requests for one seat yield exactly one reservation', async () => {
   const { store, service } = setup(); const results = await Promise.allSettled(Array.from({ length: 30 }, (_, i) => service.create(input(), `source-${i}`)));
@@ -194,6 +194,24 @@ test('emails follow the language the form was filled in', async () => {
   assert.match(sent.at(-1).subject, /deposit has been received/); assert.match(sent.at(-1).text, /375 €/); assert.equal((await store.get(english.requestId)).lang, 'en');
   for (const key of ['firstReminder', 'secondEarly', 'secondLate', 'paid', 'expired', 'forfeited']) assert.doesNotMatch(renderEmail(key, await store.get(english.requestId), baseConfig, service.bank).text, /[А-Яа-я]{4,}/);
   store.close();
+});
+test('held seats look taken and cannot be requested', async () => {
+  const { store, service, request } = requestSetup();
+  const seats = (await service.availability()).seats; assert.deepEqual(seats.filter(s => !s.available).map(s => s.id), ['109', '110', '111', '112', '113', '114']);
+  await assert.rejects(service.create(request('109')), { status: 409 }); assert.deepEqual(await store.occupied(), []); store.close();
+});
+test('email subject names the conference with Doug Schoon in both languages', async () => {
+  const { store, service, sent, request } = requestSetup(); await service.create(request('101')); await service.create({ ...request('102'), lang: 'en' });
+  assert.equal(sent[0].subject, 'Ти запази мястото си | Конференция с Дъг Шун'); assert.equal(sent[1].subject, 'You have reserved your seat | Conference with Doug Schoon'); store.close();
+});
+test('invoice details are required when asked for, stored and shown only in admin', async () => {
+  const { store, service, request } = requestSetup(); service.adminToken = 'k'.repeat(40);
+  for (const invoiceDetails of [undefined, '   ', 'x'.repeat(501), 'Фирма\u0000 ООД']) await assert.rejects(service.create({ ...request('301'), invoice: true, invoiceDetails }), { status: 400 });
+  const data = { ...request('301'), invoice: true, invoiceDetails: ' Фирма ООД\nЕИК 123456789 ' }; await service.create(data); await service.create(data);
+  await service.create({ ...request('302'), invoiceDetails: 'забравени данни без отметка' });
+  const orders = (await service.adminOrders('k'.repeat(40), 'a')).orders;
+  assert.equal(orders.find(o => o.seatId === '301').invoice, 'Фирма ООД\nЕИК 123456789'); assert.equal(orders.find(o => o.seatId === '302').invoice, undefined);
+  assert.doesNotMatch(JSON.stringify(await service.availability()), /Фирма/); store.close();
 });
 const adminKey = 'k'.repeat(40);
 test('admin needs the key and never exposes orders without it', async () => {
