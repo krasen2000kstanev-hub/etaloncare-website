@@ -1,17 +1,17 @@
 # Graph Report - etaloncare-website  (2026-11-01)
 
 ## Corpus Check
-- 42 files · ~70,126 words
+- 43 files · ~71,919 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 8 file(s) not represented in the graph (top: (none) 3, .woff2 2, .ics 1)
 
 ## Summary
-- 315 nodes · 473 edges · 26 communities (20 shown, 6 thin omitted)
-- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 15 edges (avg confidence: 0.92)
+- 331 nodes · 511 edges · 27 communities (21 shown, 6 thin omitted)
+- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 16 edges (avg confidence: 0.92)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8feb425b`
+- Built from commit: `ba328686`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -38,59 +38,60 @@
 - archive-current.mjs
 - publish-preview.mjs
 - ref_node_fs
+- admin.js
 
 ## God Nodes (most connected - your core abstractions)
-1. `Service` - 24 edges
-2. `Communities (26 total, 6 thin omitted)` - 21 edges
-3. `DynamoStore` - 20 edges
-4. `SqliteStore` - 19 edges
+1. `Service` - 29 edges
+2. `DynamoStore` - 21 edges
+3. `Communities (26 total, 6 thin omitted)` - 21 edges
+4. `SqliteStore` - 20 edges
 5. `ETALON CARE — Науката за ноктите` - 15 edges
 6. `Borica` - 13 edges
-7. `ApiError` - 11 edges
-8. `Graph Report - etaloncare-website  (2026-10-31)` - 11 edges
+7. `ApiError` - 13 edges
+8. `Graph Report - etaloncare-website  (2026-11-01)` - 11 edges
 9. `ETALON CARE — Науката за ноктите` - 11 edges
 10. `renderEmail()` - 10 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `God Nodes (most connected - your core abstractions)` --references--> `Borica`  [INFERRED]
   GRAPH_REPORT.md → backend/borica.mjs
-- `Surprising Connections (you probably didn't know these)` --references--> `Borica`  [INFERRED]
-  GRAPH_REPORT.md → backend/borica.mjs
-- `God Nodes (most connected - your core abstractions)` --references--> `DynamoStore`  [INFERRED]
+- `Surprising Connections (you probably didn't know these)` --references--> `DynamoStore`  [INFERRED]
   GRAPH_REPORT.md → backend/dynamo.mjs
-- `Suggested Questions` --references--> `Service`  [INFERRED]
+- `God Nodes (most connected - your core abstractions)` --references--> `renderEmail()`  [INFERRED]
+  GRAPH_REPORT.md → backend/emails.mjs
+- `God Nodes (most connected - your core abstractions)` --references--> `ApiError`  [INFERRED]
   GRAPH_REPORT.md → backend/service.mjs
-- `Surprising Connections (you probably didn't know these)` --references--> `Service`  [INFERRED]
+- `God Nodes (most connected - your core abstractions)` --references--> `Service`  [INFERRED]
   GRAPH_REPORT.md → backend/service.mjs
 
 ## Import Cycles
 - None detected.
 
-## Communities (26 total, 6 thin omitted)
+## Communities (27 total, 6 thin omitted)
 
 ### Community 0 - "ref_node_assert"
 Cohesion: 0.29
 Nodes (4): root, englishSchema, ids, schema
 
 ### Community 1 - "backend.test.mjs"
-Cohesion: 0.09
-Nodes (21): Borica, macString(), RESPONSE, responseString(), SALE, STATUS, bankFields(), baseConfig (+13 more)
+Cohesion: 0.08
+Nodes (29): Borica, macString(), RESPONSE, responseString(), SALE, STATUS, bearer(), headers (+21 more)
 
 ### Community 2 - "aws.mjs"
 Cohesion: 0.06
-Nodes (27): dependencies, @aws-sdk/client-dynamodb, @aws-sdk/lib-dynamodb, nodemailer, devDependencies, @axe-core/playwright, playwright, name (+19 more)
+Nodes (28): seatPlan(), dependencies, @aws-sdk/client-dynamodb, @aws-sdk/lib-dynamodb, nodemailer, devDependencies, @axe-core/playwright, playwright (+20 more)
 
 ### Community 3 - "Service"
-Cohesion: 0.16
-Nodes (13): canSplit(), date(), emailsDue(), firstDeadline(), renderEmail(), renderEnglish(), secondDeadline(), ApiError (+5 more)
+Cohesion: 0.17
+Nodes (11): canSplit(), date(), emailsDue(), firstDeadline(), renderEmail(), renderEnglish(), secondDeadline(), ApiError (+3 more)
 
 ### Community 4 - "ref_node_child_process"
 Cohesion: 0.29
 Nodes (5): @axe-core/playwright, playwright, base, report, base
 
 ### Community 5 - "handler.mjs"
-Cohesion: 0.08
-Nodes (20): apiHandler, bank, config, handler(), mailer, payment, store, headers (+12 more)
+Cohesion: 0.11
+Nodes (15): apiHandler, bank, config, handler(), mailer, payment, store, Smtp (+7 more)
 
 ### Community 7 - "deploy-lambda-preview.mjs"
 Cohesion: 0.20
@@ -114,7 +115,7 @@ Nodes (20): GitHub Pages активен — 05.10.2026, SEO copy update — 07.1
 
 ### Community 16 - "Communities (26 total, 6 thin omitted)"
 Cohesion: 0.10
-Nodes (21): Communities (26 total, 6 thin omitted), Community 0 - "ref_node_assert", Community 11 - "soon.js", Community 15 - "ETALON CARE — Науката за ноктите", Community 16 - "Communities (21 total, 5 thin omitted)", Community 17 - "ETALON CARE — Науката за ноктите", Community 18 - "EtalonCare — project memory", Community 19 - "deploy-preview.mjs" (+13 more)
+Nodes (21): Communities (26 total, 6 thin omitted), Community 0 - "ref_node_assert", Community 11 - "soon.js", Community 15 - "ETALON CARE — Науката за ноктите", Community 16 - "Communities (26 total, 6 thin omitted)", Community 17 - "ETALON CARE — Науката за ноктите", Community 18 - "EtalonCare — project memory", Community 19 - "deploy-preview.mjs" (+13 more)
 
 ### Community 17 - "ETALON CARE — Науката за ноктите"
 Cohesion: 0.12
@@ -133,8 +134,8 @@ Cohesion: 0.33
 Nodes (4): config, deployment, plan, update
 
 ### Community 21 - "DynamoStore"
-Cohesion: 0.11
-Nodes (10): DynamoStore, Community Hubs (Navigation), Corpus Check, Graph Freshness, Graph Report - etaloncare-website  (2026-10-31), Import Cycles, Knowledge Gaps, Suggested Questions (+2 more)
+Cohesion: 0.10
+Nodes (10): DynamoStore, Community Hubs (Navigation), Corpus Check, God Nodes (most connected - your core abstractions), Graph Freshness, Graph Report - etaloncare-website  (2026-11-01), Import Cycles, Knowledge Gaps (+2 more)
 
 ### Community 22 - "dev.mjs"
 Cohesion: 0.33
@@ -148,23 +149,27 @@ Nodes (4): files, references, root, saved
 Cohesion: 0.40
 Nodes (3): cors, deployment, plan
 
+### Community 26 - "admin.js"
+Cohesion: 0.62
+Nodes (6): call(), cell(), draw(), load(), logout(), update()
+
 ## Knowledge Gaps
 - **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Graph Report - etaloncare-website  (2026-10-31)` connect `DynamoStore` to `Communities (26 total, 6 thin omitted)`, `Service`?**
-  _High betweenness centrality (0.125) - this node is a cross-community bridge._
+- **Why does `Graph Report - etaloncare-website  (2026-11-01)` connect `DynamoStore` to `Communities (26 total, 6 thin omitted)`, `backend.test.mjs`?**
+  _High betweenness centrality (0.118) - this node is a cross-community bridge._
 - **Are the 3 inferred relationships involving `Service` (e.g. with `God Nodes (most connected - your core abstractions)` and `Suggested Questions`) actually correct?**
   _`Service` has 3 INFERRED edges - model-reasoned connections that need verification._
 - **Should `backend.test.mjs` be split into smaller, more focused modules?**
-  _Cohesion score 0.0946969696969697 - nodes in this community are weakly interconnected._
-- **Why does `Service` connect `Service` to `backend.test.mjs`, `DynamoStore`, `aws.mjs`, `handler.mjs`?**
-  _High betweenness centrality (0.104) - this node is a cross-community bridge._
+  _Cohesion score 0.0753045404208195 - nodes in this community are weakly interconnected._
+- **Why does `Service` connect `Service` to `backend.test.mjs`, `aws.mjs`, `DynamoStore`, `handler.mjs`?**
+  _High betweenness centrality (0.116) - this node is a cross-community bridge._
 - **Are the 3 inferred relationships involving `DynamoStore` (e.g. with `God Nodes (most connected - your core abstractions)` and `Suggested Questions`) actually correct?**
   _`DynamoStore` has 3 INFERRED edges - model-reasoned connections that need verification._
 - **Should `aws.mjs` be split into smaller, more focused modules?**
-  _Cohesion score 0.06439393939393939 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06050420168067227 - nodes in this community are weakly interconnected._
 - **Why does `Communities (26 total, 6 thin omitted)` connect `Communities (26 total, 6 thin omitted)` to `DynamoStore`?**
-  _High betweenness centrality (0.094) - this node is a cross-community bridge._
+  _High betweenness centrality (0.088) - this node is a cross-community bridge._

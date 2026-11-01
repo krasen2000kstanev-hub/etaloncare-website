@@ -35,6 +35,11 @@ export class DynamoStore {
   async markEmail(id, key, at) {
     await this.client.send(new UpdateCommand({ TableName: this.table, Key: { pk: `ORDER#${id}` }, UpdateExpression: 'SET emails.#k=:t', ConditionExpression: 'attribute_exists(pk)', ExpressionAttributeNames: { '#k': key }, ExpressionAttributeValues: { ':t': at } }));
   }
+  async mark(order, from, to, at) {
+    try {
+      await this.client.send(new UpdateCommand({ TableName: this.table, Key: { pk: `ORDER#${order.id}` }, UpdateExpression: 'SET #status=:s, #group=:s, markedAt=:a', ConditionExpression: '#status=:from', ExpressionAttributeNames: { '#status': 'status', '#group': 'group' }, ExpressionAttributeValues: { ':s': to, ':from': from, ':a': at } }));
+    } catch (e) { if (e.name !== 'ConditionalCheckFailedException') throw e; }
+  }
   // Условието за статус пази платена заявка, ако организаторът я е отбелязал междувременно.
   async release(order, from, to, at) {
     const update = { Update: { TableName: this.table, Key: { pk: `ORDER#${order.id}` }, UpdateExpression: 'SET #status=:s, #group=:s, releasedAt=:a', ConditionExpression: '#status=:from', ExpressionAttributeNames: { '#status': 'status', '#group': 'group' }, ExpressionAttributeValues: { ':s': to, ':from': from, ':a': at } } };

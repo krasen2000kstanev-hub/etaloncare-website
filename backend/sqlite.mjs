@@ -14,6 +14,10 @@ export class SqliteStore {
     const current = this.get(id);
     this.db.prepare('UPDATE orders SET data=? WHERE id=?').run(JSON.stringify({ ...current, emails: { ...current.emails, [key]: at } }), id);
   }
+  async mark(order, from, to, at) {
+    const current = this.get(order.id);
+    if (current.status === from) this.db.prepare('UPDATE orders SET data=? WHERE id=?').run(JSON.stringify({ ...current, status: to, markedAt: at }), order.id);
+  }
   async release(order, from, to, at) {
     this.db.exec('BEGIN IMMEDIATE');
     try {

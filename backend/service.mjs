@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
-import { emailsDue, renderEmail, secondDeadline } from './emails.mjs';
+import { canSplit, emailsDue, renderEmail, secondDeadline } from './emails.mjs';
 export class ApiError extends Error { constructor(status, message) { super(message); this.status = status; } }
 const digest = value => createHash('sha256').update(value).digest('hex');
 const safeEqual = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -9,7 +9,7 @@ export function seatPlan(config) {
   return seats;
 }
 export class Service {
-  constructor({ store, payment, config, mailer, bank, clock = () => Date.now() }) { this.store = store; this.payment = payment; this.config = config; this.mailer = mailer; this.bank = bank; this.clock = clock; this.seats = seatPlan(config); }
+  constructor({ store, payment, config, mailer, bank, adminToken, clock = () => Date.now() }) { this.adminToken = adminToken; this.store = store; this.payment = payment; this.config = config; this.mailer = mailer; this.bank = bank; this.clock = clock; this.seats = seatPlan(config); }
   // Заявка без картово плащане: мястото се пази requestDays дни или докато организаторът не смени статуса след превод.
   get requests() { return this.config.paymentMode === 'request'; }
   open() { const now = this.clock(); return this.config.registrationEnabled && this.config.seatPlanApproved && this.config.termsApproved && (this.requests || this.payment.ready) && now >= Date.parse(this.config.registrationOpens) && now < Date.parse(this.config.registrationCloses); }
@@ -94,6 +94,37 @@ export class Service {
       return { ...order, ...result };
     }
     return order; // Unknown or nonfinal results keep the seat unavailable until reconciliation.
+  }
+  // Админ: само с дълъг таен ключ от настройките на Lambda; без ключ пътищата не съществуват.
+  async authorize(token, source) {
+    if (!this.adminToken || this.adminToken.length < 32) throw new ApiError(404, 'Страницата не е намерена.');
+    if (!await this.store.limit(digest(`admin:${source}`), Math.floor(this.clock() / 60000), 30)) throw new ApiError(429, 'Твърде много опити. Опитай след минута.');
+    if (!safeEqual(digest(String(token || '')), digest(this.adminToken))) throw new ApiError(401, 'Невалиден ключ.');
+  }
+  adminActions(order) {
+    if (order.status === 'requested') return [...(this.canTakeDeposit(order) ? ['deposit'] : []), 'paid', 'cancelled'];
+    return order.status === 'deposit' ? ['paid', 'cancelled'] : [];
+  }
+  canTakeDeposit(order) { return canSplit(order, this.config) && this.clock() <= secondDeadline(this.config); }
+  async adminOrders(token, source) {
+    await this.authorize(token, source);
+    const lists = await Promise.all(['requested', 'deposit', 'paid', 'expired', 'forfeited', 'cancelled'].map(status => this.store.byStatus(status)));
+    const orders = lists.flat().sort((a, b) => b.createdAt - a.createdAt).map(order => ({ id: order.id, seatId: order.seatId, tier: order.tier, name: order.name, email: order.email, phone: order.phone, total: order.total, status: order.status, lang: order.lang || 'bg', createdAt: order.createdAt, deadline: order.status === 'requested' ? order.createdAt + this.config.requestDays * 86400 : order.status === 'deposit' ? Math.floor(secondDeadline(this.config) / 1000) : null, actions: this.adminActions(order) }));
+    return { orders };
+  }
+  async adminUpdate(id, action, token, source) {
+    await this.authorize(token, source);
+    const order = await this.store.get(id);
+    if (!order) throw new ApiError(404, 'Заявката не е намерена.');
+    if (!this.adminActions(order).includes(action)) throw new ApiError(409, 'Това действие вече не е възможно. Обнови страницата.');
+    const at = Math.floor(this.clock() / 1000);
+    if (action === 'cancelled') await this.store.release(order, order.status, 'cancelled', at);
+    else await this.store.mark(order, order.status, action, at);
+    const updated = await this.store.get(id);
+    if (updated.status !== action) throw new ApiError(409, 'Заявката междувременно е променена. Обнови страницата.');
+    // Отказът не праща имейл; при неуспех планираната задача опитва пак.
+    const emailed = action === 'cancelled' ? 0 : await this.sendDue(updated).catch(error => { console.error('Email failure:', error.name); return 0; });
+    return { status: updated.status, emailed: emailed > 0 };
   }
   // Гратисните дни дават време на превода да пристигне и организаторът да го отбележи.
   async releaseUnpaid() {

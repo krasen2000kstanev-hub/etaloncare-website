@@ -19,5 +19,7 @@
   "en/index.html",
   "en/booking.html",
   "en/payment.html",
-  "en/privacy.html"
+  "en/privacy.html",
+  "admin.html",
+  "admin.js"
 ]

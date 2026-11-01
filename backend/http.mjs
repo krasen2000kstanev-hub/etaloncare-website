@@ -1,5 +1,6 @@
 import { ApiError } from './service.mjs';
 const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
+const bearer = event => event.headers?.authorization?.replace(/^Bearer /, '');
 export function makeHandler(service, siteUrl) {
   return async event => {
     if (event.task === 'reconcile') return service.reconcile(); // IAM-only direct Lambda invocation.
@@ -9,7 +10,11 @@ export function makeHandler(service, siteUrl) {
       if (Buffer.byteLength(raw) > 12000) throw new ApiError(413, 'Заявката е твърде голяма.');
       let data;
       if (method === 'GET' && path === '/api/seats') data = await service.availability();
-      else if (method === 'POST' && path === '/api/orders') {
+      else if (method === 'GET' && path === '/api/admin/orders') data = await service.adminOrders(bearer(event), event.requestContext.http.sourceIp);
+      else if (method === 'POST' && /^\/api\/admin\/orders\/[a-f0-9-]{36}$/.test(path)) {
+        if (!event.headers?.['content-type']?.startsWith('application/json')) throw new ApiError(415, 'Използвайте JSON.');
+        data = await service.adminUpdate(path.split('/').pop(), JSON.parse(raw).action, bearer(event), event.requestContext.http.sourceIp);
+      } else if (method === 'POST' && path === '/api/orders') {
         if (event.headers?.origin !== new URL(siteUrl).origin) throw new ApiError(403, 'Невалиден източник на заявката.');
         if (!event.headers?.['content-type']?.startsWith('application/json')) throw new ApiError(415, 'Използвайте JSON.');
         data = await service.create(JSON.parse(raw), event.requestContext.http.sourceIp);

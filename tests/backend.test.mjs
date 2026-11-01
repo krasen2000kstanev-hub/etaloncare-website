@@ -195,3 +195,32 @@ test('emails follow the language the form was filled in', async () => {
   for (const key of ['firstReminder', 'secondEarly', 'secondLate', 'paid', 'expired', 'forfeited']) assert.doesNotMatch(renderEmail(key, await store.get(english.requestId), baseConfig, service.bank).text, /[А-Яа-я]{4,}/);
   store.close();
 });
+const adminKey = 'k'.repeat(40);
+test('admin needs the key and never exposes orders without it', async () => {
+  const { store, service, request } = requestSetup(); await service.create(request('101'));
+  await assert.rejects(service.adminOrders('wrong', 'ip'), { status: 404 });
+  service.adminToken = 'short'; await assert.rejects(service.adminOrders('short', 'ip'), { status: 404 });
+  service.adminToken = adminKey;
+  for (const bad of ['wrong', '', undefined]) await assert.rejects(service.adminOrders(bad, 'ip'), { status: 401 });
+  const handle = makeHandler(service, 'https://etaloncare.com');
+  const denied = await handle({ rawPath: '/api/admin/orders', headers: {}, requestContext: { http: { method: 'GET', sourceIp: 'ip2' } } }); assert.equal(denied.statusCode, 401); assert.doesNotMatch(denied.body, /example\.com/);
+  const allowed = await handle({ rawPath: '/api/admin/orders', headers: { authorization: `Bearer ${adminKey}` }, requestContext: { http: { method: 'GET', sourceIp: 'ip2' } } }); assert.equal(allowed.statusCode, 200); assert.equal(JSON.parse(allowed.body).orders[0].seatId, '101'); assert.doesNotMatch(allowed.body, /tokenHash|nonce|fingerprint/);
+  for (let i = 0; i < 30; i++) await service.adminOrders(adminKey, 'flood'); await assert.rejects(service.adminOrders(adminKey, 'flood'), { status: 429 }); store.close();
+});
+test('admin marks deposit and payment, sends the mail and keeps the seat', async () => {
+  const { store, service, sent, request, at } = requestSetup(); service.adminToken = adminKey; const data = request('301'); await service.create(data); sent.length = 0;
+  assert.deepEqual((await service.adminOrders(adminKey, 'a')).orders[0].actions, ['deposit', 'paid', 'cancelled']);
+  assert.deepEqual(await service.adminUpdate(data.requestId, 'deposit', adminKey, 'a'), { status: 'deposit', emailed: true }); assert.match(sent[0].subject, /капарирано/);
+  await assert.rejects(service.adminUpdate(data.requestId, 'deposit', adminKey, 'a'), { status: 409 });
+  at('2026-12-20T12:00:00Z'); assert.equal((await service.reconcile()).expired, 0); assert.deepEqual(await store.occupied(), ['301']);
+  assert.equal((await service.adminUpdate(data.requestId, 'paid', adminKey, 'a')).status, 'paid'); assert.match(sent.at(-1).subject, /получено/);
+  assert.deepEqual((await service.adminOrders(adminKey, 'a')).orders[0].actions, []);
+  at('2027-03-01T12:00:00Z'); assert.equal((await service.reconcile()).forfeited, 0); assert.deepEqual(await store.occupied(), ['301']); store.close();
+});
+test('admin cancel frees the seat with no mail, and refuses unknown actions', async () => {
+  const { store, service, sent, request, at } = requestSetup(); service.adminToken = adminKey; const data = request('302'); await service.create(data); sent.length = 0;
+  await assert.rejects(service.adminUpdate(data.requestId, 'hack', adminKey, 'a'), { status: 409 }); await assert.rejects(service.adminUpdate(randomUUID(), 'paid', adminKey, 'a'), { status: 404 });
+  assert.equal((await service.adminUpdate(data.requestId, 'cancelled', adminKey, 'a')).status, 'cancelled'); assert.deepEqual(await store.occupied(), []); assert.equal(sent.length, 0);
+  await service.reconcile(); assert.equal(sent.length, 0); assert.equal((await service.adminOrders(adminKey, 'a')).orders[0].status, 'cancelled');
+  const late = request('303'); at('2027-01-25T12:00:00Z'); await service.create(late); assert.deepEqual((await service.adminOrders(adminKey, 'a')).orders[0].actions, ['paid', 'cancelled']); await assert.rejects(service.adminUpdate(late.requestId, 'deposit', adminKey, 'a'), { status: 409 }); store.close();
+});
