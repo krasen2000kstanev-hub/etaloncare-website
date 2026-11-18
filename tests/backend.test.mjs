@@ -1,3 +1,4 @@
+import { scryptSync } from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -229,6 +230,21 @@ test('admin needs the key and never exposes orders without it', async () => {
   const denied = await handle({ rawPath: '/api/admin/orders', headers: {}, requestContext: { http: { method: 'GET', sourceIp: 'ip2' } } }); assert.equal(denied.statusCode, 401); assert.doesNotMatch(denied.body, /example\.com/);
   const allowed = await handle({ rawPath: '/api/admin/orders', headers: { authorization: `Bearer ${adminKey}` }, requestContext: { http: { method: 'GET', sourceIp: 'ip2' } } }); assert.equal(allowed.statusCode, 200); assert.equal(JSON.parse(allowed.body).orders[0].seatId, '101'); assert.doesNotMatch(allowed.body, /tokenHash|nonce|fingerprint/);
   for (let i = 0; i < 30; i++) await service.adminOrders(adminKey, 'flood'); await assert.rejects(service.adminOrders(adminKey, 'flood'), { status: 429 }); store.close();
+});
+test('admin password login gives a 12-hour session and disables the old key', async () => {
+  const { store, service, request, at } = requestSetup(); await service.create(request('101')); service.adminToken = adminKey;
+  const salt = Buffer.from('00112233445566778899aabbccddeeff', 'hex'), pw = 'Етало́н конференция 2027';
+  service.adminPassword = `scrypt$${salt.toString('hex')}$${scryptSync(pw.normalize('NFC'), salt, 32, { N: 16384, r: 8, p: 1 }).toString('hex')}`;
+  await assert.rejects(service.adminOrders(adminKey, 'ip'), { status: 401 });
+  await assert.rejects(service.adminLogin('грешна', 'ip'), { status: 401 });
+  const handle = makeHandler(service, 'https://etaloncare.com');
+  const res = await handle({ rawPath: '/api/admin/login', body: JSON.stringify({ password: pw }), headers: {}, requestContext: { http: { method: 'POST', sourceIp: 'ip3' } } });
+  assert.equal(res.statusCode, 200); const { token } = JSON.parse(res.body);
+  assert.equal((await service.adminOrders(token, 'ip')).orders.length, 1);
+  const [exp, sig] = token.split('.'); await assert.rejects(service.adminOrders(`${Number(exp) + 9999}.${sig}`, 'ip'), { status: 401 });
+  at('2026-11-03T01:00:00Z'); await assert.rejects(service.adminOrders(token, 'ip'), { status: 401 });
+  for (let i = 0; i < 5; i++) await assert.rejects(service.adminLogin('x', 'brute'), { status: 401 });
+  await assert.rejects(service.adminLogin(pw, 'brute'), { status: 429 }, 'след 5 опита в минута дори вярната парола чака'); store.close();
 });
 test('admin marks deposit and payment, sends the mail and keeps the seat', async () => {
   const { store, service, sent, request, at } = requestSetup(); service.adminToken = adminKey; const data = request('301'); await service.create(data); sent.length = 0;

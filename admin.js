@@ -51,7 +51,7 @@
       const data = await call('/api/admin/orders');
       login.hidden = true; board.hidden = false; draw(data.orders, data.held); show('');
     } catch (error) {
-      if (error.code === 401) logout('Ключът не е верен.'); else { board.hidden || show(error.message, 'error'); document.getElementById('login-status').textContent = error.message; }
+      if (error.code === 401) logout('Влез отново.'); else { board.hidden || show(error.message, 'error'); document.getElementById('login-status').textContent = error.message; }
     }
   }
   async function update(id, action) {
@@ -66,10 +66,16 @@
       show(error.message, 'error');
     }
   }
-  login.addEventListener('submit', event => {
+  login.addEventListener('submit', async event => {
     event.preventDefault();
-    try { sessionStorage.setItem(key, new FormData(login).get('token').trim()); } catch { document.getElementById('login-status').textContent = 'Браузърът не позволява временно съхранение.'; return; }
-    load();
+    const out = document.getElementById('login-status'); out.textContent = 'Проверявам…';
+    try {
+      const response = await fetch(`${api}/api/admin/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: new FormData(login).get('password') }), signal: AbortSignal.timeout(20000) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) { out.textContent = data.message || 'Системата не отговаря. Опитай отново.'; return; }
+      sessionStorage.setItem(key, data.token);
+    } catch { out.textContent = 'Системата не отговаря или браузърът не позволява временно съхранение.'; return; }
+    out.textContent = ''; load();
   });
   document.getElementById('refresh').addEventListener('click', load);
   document.getElementById('logout').addEventListener('click', () => logout());

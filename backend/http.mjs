@@ -10,6 +10,7 @@ export function makeHandler(service, siteUrl) {
       if (Buffer.byteLength(raw) > 12000) throw new ApiError(413, 'Заявката е твърде голяма.');
       let data;
       if (method === 'GET' && path === '/api/seats') data = await service.availability();
+      else if (method === 'POST' && path === '/api/admin/login') data = await service.adminLogin(JSON.parse(raw).password, event.requestContext.http.sourceIp);
       else if (method === 'GET' && path === '/api/admin/orders') data = await service.adminOrders(bearer(event), event.requestContext.http.sourceIp);
       else if (method === 'POST' && /^\/api\/admin\/orders\/[a-f0-9-]{36}$/.test(path)) {
         if (!event.headers?.['content-type']?.startsWith('application/json')) throw new ApiError(415, 'Използвайте JSON.');

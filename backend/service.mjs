@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomInt, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { canSplit, emailsDue, holdUntil, renderEmail, secondDeadline } from './emails.mjs';
 export class ApiError extends Error { constructor(status, message) { super(message); this.status = status; } }
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -9,7 +9,7 @@ export function seatPlan(config) {
   return seats;
 }
 export class Service {
-  constructor({ store, payment, config, mailer, bank, adminToken, clock = () => Date.now() }) { this.adminToken = adminToken; this.store = store; this.payment = payment; this.config = config; this.mailer = mailer; this.bank = bank; this.clock = clock; this.seats = seatPlan(config); }
+  constructor({ store, payment, config, mailer, bank, adminToken, adminPassword, clock = () => Date.now() }) { this.adminToken = adminToken; this.adminPassword = adminPassword; this.store = store; this.payment = payment; this.config = config; this.mailer = mailer; this.bank = bank; this.clock = clock; this.seats = seatPlan(config); }
   // Заявка без картово плащане: мястото се пази requestDays дни или докато организаторът не смени статуса след превод.
   get requests() { return this.config.paymentMode === 'request'; }
   // Места, запазени от организатора: за посетителите изглеждат заети.
@@ -101,11 +101,25 @@ export class Service {
     }
     return order; // Unknown or nonfinal results keep the seat unavailable until reconciliation.
   }
-  // Админ: само с дълъг таен ключ от настройките на Lambda; без ключ пътищата не съществуват.
+  // Админ: вход с парола (ADMIN_PASSWORD_HASH = scrypt$сол$отпечатък), после подписан вход за 12 часа.
+  // ADMIN_TOKEN е тайният ключ за подписа. Докато няма зададена парола, работи и старият вход с ключа.
+  sign(exp) { return createHmac('sha256', this.adminToken).update(`admin.${exp}`).digest('hex'); }
+  async adminLogin(password, source) {
+    if (!this.adminToken || this.adminToken.length < 32 || !/^scrypt\$[0-9a-f]+\$[0-9a-f]{64}$/.test(this.adminPassword || '')) throw new ApiError(404, 'Страницата не е намерена.');
+    if (!await this.store.limit(digest(`login:${source}`), Math.floor(this.clock() / 60000), 5)) throw new ApiError(429, 'Твърде много опити. Опитай след минута.');
+    const [, salt, hash] = this.adminPassword.split('$');
+    const got = scryptSync(String(password || '').normalize('NFC'), Buffer.from(salt, 'hex'), 32, { N: 16384, r: 8, p: 1 });
+    if (!timingSafeEqual(got, Buffer.from(hash, 'hex'))) throw new ApiError(401, 'Грешна парола.');
+    const exp = Math.floor(this.clock() / 1000) + 12 * 3600;
+    return { token: `${exp}.${this.sign(exp)}` };
+  }
   async authorize(token, source) {
     if (!this.adminToken || this.adminToken.length < 32) throw new ApiError(404, 'Страницата не е намерена.');
     if (!await this.store.limit(digest(`admin:${source}`), Math.floor(this.clock() / 60000), 30)) throw new ApiError(429, 'Твърде много опити. Опитай след минута.');
-    if (!safeEqual(digest(String(token || '')), digest(this.adminToken))) throw new ApiError(401, 'Невалиден ключ.');
+    const [exp, sig] = String(token || '').split('.');
+    if (sig && Number(exp) * 1000 > this.clock() && safeEqual(sig, this.sign(Number(exp)))) return;
+    if (!this.adminPassword && safeEqual(digest(String(token || '')), digest(this.adminToken))) return;
+    throw new ApiError(401, 'Влез отново.');
   }
   adminActions(order) {
     if (order.status === 'requested') return [...(this.canTakeDeposit(order) ? ['deposit'] : []), 'paid', 'cancelled'];
