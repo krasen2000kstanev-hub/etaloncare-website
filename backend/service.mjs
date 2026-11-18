@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
-import { canSplit, emailsDue, renderEmail, secondDeadline } from './emails.mjs';
+import { canSplit, emailsDue, holdUntil, renderEmail, secondDeadline } from './emails.mjs';
 export class ApiError extends Error { constructor(status, message) { super(message); this.status = status; } }
 const digest = value => createHash('sha256').update(value).digest('hex');
 const safeEqual = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -45,7 +45,7 @@ export class Service {
     // Reservation rate limits are enforced in shared storage, never only in the browser.
     if (!await this.store.limit(digest(source), Math.floor(this.clock() / 60000), 5)) throw new ApiError(429, 'Твърде много заявки. Опитайте след минута.');
     const createdAt = Math.floor(this.clock() / 1000);
-    const order = { ...data, status: this.requests ? 'requested' : 'pending', emails: {}, createdAt, termsVersion: this.config.termsVersion, termsAcceptedAt: createdAt, nonce: randomBytes(16).toString('hex').toUpperCase(), timestamp: new Date(this.clock()).toISOString().replace(/[-:TZ.]/g, '').slice(0, 14) };
+    const order = { ...data, status: this.requests ? 'requested' : 'pending', emails: {}, createdAt, holdDays: this.config.requestDays, reminderDay: this.config.firstReminderDay, termsVersion: this.config.termsVersion, termsAcceptedAt: createdAt, nonce: randomBytes(16).toString('hex').toUpperCase(), timestamp: new Date(this.clock()).toISOString().replace(/[-:TZ.]/g, '').slice(0, 14) };
     for (let attempt = 0; attempt < 5; attempt++) {
       order.bankOrder = String(randomInt(100000, 1000000));
       // Sign before claiming a seat; a broken bank configuration cannot strand an order.
@@ -115,7 +115,7 @@ export class Service {
   async adminOrders(token, source) {
     await this.authorize(token, source);
     const lists = await Promise.all(['requested', 'deposit', 'paid', 'expired', 'forfeited', 'cancelled'].map(status => this.store.byStatus(status)));
-    const orders = lists.flat().sort((a, b) => b.createdAt - a.createdAt).map(order => ({ id: order.id, seatId: order.seatId, tier: order.tier, name: order.name, invoice: order.invoice, email: order.email, phone: order.phone, total: order.total, status: order.status, lang: order.lang || 'bg', createdAt: order.createdAt, deadline: order.status === 'requested' ? order.createdAt + this.config.requestDays * 86400 : order.status === 'deposit' ? Math.floor(secondDeadline(this.config) / 1000) : null, actions: this.adminActions(order) }));
+    const orders = lists.flat().sort((a, b) => b.createdAt - a.createdAt).map(order => ({ id: order.id, seatId: order.seatId, tier: order.tier, name: order.name, invoice: order.invoice, email: order.email, phone: order.phone, total: order.total, status: order.status, lang: order.lang || 'bg', createdAt: order.createdAt, deadline: order.status === 'requested' ? Math.floor(holdUntil(order, this.config) / 1000) : order.status === 'deposit' ? Math.floor(secondDeadline(this.config) / 1000) : null, actions: this.adminActions(order) }));
     return { orders, held: (this.config.heldSeats || []).length };
   }
   async adminUpdate(id, action, token, source) {
@@ -136,7 +136,7 @@ export class Service {
   async releaseUnpaid() {
     const now = this.clock(), at = Math.floor(now / 1000), grace = this.config.graceDays * 86400000; let expired = 0, forfeited = 0;
     for (const order of await this.store.byStatus('requested')) {
-      if (now <= order.createdAt * 1000 + this.config.requestDays * 86400000 + grace) continue;
+      if (now <= holdUntil(order, this.config) + grace) continue;
       await this.store.release(order, 'requested', 'expired', at); expired++;
     }
     if (now > secondDeadline(this.config) + grace) for (const order of await this.store.byStatus('deposit')) { await this.store.release(order, 'deposit', 'forfeited', at); forfeited++; }

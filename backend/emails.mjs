@@ -1,7 +1,11 @@
 // Календар и текст на имейлите при заявка с банков превод. Без мрежа, за да се тества лесно.
 const DAY = 86400000;
 const date = (ms, lang) => lang === 'en' ? new Date(ms).toLocaleDateString('en-GB', { timeZone: 'Europe/Sofia', day: 'numeric', month: 'long', year: 'numeric' }) : new Date(ms).toLocaleDateString('bg-BG', { timeZone: 'Europe/Sofia' }).replace(' г.', '');
-const firstDeadline = (order, config) => order.createdAt * 1000 + config.requestDays * DAY;
+// Заявките отпреди 18.11.2026 нямат holdDays/reminderDay: за тях важат обещаните тогава 14 дни и напомняне на 10-ия ден.
+const holdDays = (order, config) => order.holdDays ?? 14;
+const reminderDay = (order, config) => order.reminderDay ?? 10;
+const firstDeadline = (order, config) => order.createdAt * 1000 + holdDays(order, config) * DAY;
+export const holdUntil = firstDeadline;
 export const secondDeadline = config => Date.parse(config.secondInstalmentDue);
 // Който се запише твърде късно, няма реално време за две вноски и плаща наведнъж.
 export const canSplit = (order, config) => firstDeadline(order, config) <= secondDeadline(config);
@@ -10,7 +14,7 @@ export function emailsDue(order, config, now) {
   const sent = order.emails || {}, first = firstDeadline(order, config), second = secondDeadline(config), due = [];
   if (order.status === 'requested') {
     due.push('confirmation');
-    if (now >= order.createdAt * 1000 + config.firstReminderDay * DAY && now < first) due.push('firstReminder');
+    if (now >= order.createdAt * 1000 + reminderDay(order, config) * DAY && now < first) due.push('firstReminder');
   } else if (order.status === 'deposit') {
     due.push('deposit');
     const [early, late] = config.secondReminderDays;
@@ -42,8 +46,34 @@ function renderEnglish(key, order, config, bank) {
   return { subject: `${subject} | Conference with Doug Schoon`, text: `Hello ${order.name},\n\n${body}\n\nQuestions: info@etaloncare.com\nETALON CARE` };
 }
 
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// Писмо „Ти запази мястото си“ — текстът е одобрен от организатора на 18.11.2026. **…** = удебелено в HTML.
+function renderConfirmation(order, config, bank) {
+  const half = order.total * config.firstInstalmentPercent / 100, rest = order.total - half, split = canSplit(order, config);
+  const lines = [
+    `Здравей, ${order.name}!`, '',
+    'Радваме се, че избра да бъдеш част от едно специално събитие!', '',
+    'Твоето място за международната конференция **„НАУКАТА ЗА НОКТИТЕ“** с Дъг Шун е успешно запазено.', '',
+    '**ТВОЕТО МЯСТО:**', `Ред ${order.seatId.slice(0, -2)} | Място ${Number(order.seatId.slice(-2))}`, '',
+    '**ДАТА:** 21–22 март 2027 г.', '',
+    '**КАК ДА ПОТВЪРДИШ РЕЗЕРВАЦИЯТА СИ?**', '',
+    ...(split ? ['Можеш да избереш един от двата начина на плащане:', '', `${config.firstInstalmentPercent}% капаро – ${half} €`, '', `Пълно плащане – ${order.total} €`] : [`Пълно плащане – ${order.total} €`]), '',
+    `Срокът за извършване на плащането е **${holdDays(order, config)} календарни дни** от датата на резервацията.`, '',
+    '**С банков превод с тези данни:**', `IBAN: ${bank.iban}`, ...(bank.bic ? [`BIC: ${bank.bic}`] : []), 'Банка: УниКредит Булбанк', 'Получател: Грейт Уърк ООД', `Основание: Конференция, ${order.name}`, '',
+    ...(split ? [`Ако избереш плащане с капаро, остатъкът от ${rest} € трябва да бъде заплатен **най-късно до ${date(secondDeadline(config))} г.**`, ''] : []),
+    'След постъпване на плащането резервацията ти ще бъде потвърдена.', '',
+    'Очакват те два дни, посветени на науката, знанията и професионалното развитие, с един от най-авторитетните експерти в индустрията.', '',
+    'Благодарим ти за доверието!', '', 'Очакваме те!', '', 'Екипът на Etaloncare'
+  ];
+  const text = lines.join('\n').replaceAll('**', '');
+  const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#1b2233">${lines.map(l => esc(l).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')).join('<br>\n')}</div>`;
+  return { subject: 'Ти запази мястото си | Конференция с Дъг Шун', text, html };
+}
+
 export function renderEmail(key, order, config, bank) {
   if (order.lang === 'en') return renderEnglish(key, order, config, bank);
+  if (key === 'confirmation') return renderConfirmation(order, config, bank);
   const seat = `ред ${order.seatId.slice(0, -2)}, място ${Number(order.seatId.slice(-2))}`;
   const half = order.total * config.firstInstalmentPercent / 100, rest = order.total - half, second = date(secondDeadline(config)), first = date(firstDeadline(order, config));
   const transfer = `С банков превод с тези данни:\nIBAN: ${bank.iban}${bank.bic ? `\nBIC: ${bank.bic}` : ''}\nБанка: УниКредит Булбанк\nПолучател: Грейт Уърк ООД\nОснование: Конференция, ${order.name}`;

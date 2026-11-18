@@ -127,14 +127,18 @@ test('request mode records the seat without card data or a bank', async () => {
   await assert.rejects(service.create({ ...input('101') }), { status: 409 });
   assert.deepEqual(await store.pending(), []); assert.deepEqual(await service.reconcile(), { checked: 0, unresolved: 0, expired: 0, forfeited: 0, emails: 0 }); store.close();
 });
-test('unpaid requests free the seat after 14 days plus grace, marked ones stay', async () => {
+test('unpaid requests free the seat after 3 days plus grace, marked ones stay', async () => {
   const { store, service } = setup({ paymentMode: 'request' }); service.payment = new Borica({}); const start = Date.parse('2026-11-02T12:00:00Z'); let now = start; service.clock = () => now;
   const { cardholderName, billingAddress, ...unpaid } = input('301'); const { cardholderName: c2, billingAddress: b2, ...paid } = input('302');
   await service.create(unpaid); await service.create(paid);
   const marked = await store.get(paid.requestId); store.db.prepare('UPDATE orders SET data=? WHERE id=?').run(JSON.stringify({ ...marked, status: 'deposit' }), paid.requestId);
-  now = start + 17 * 86400000 - 1000; assert.equal((await service.reconcile()).expired, 0); assert.equal((await store.occupied()).length, 2);
-  now = start + 17 * 86400000 + 1000; assert.equal((await service.reconcile()).expired, 1); assert.deepEqual(await store.occupied(), ['302']);
+  now = start + 6 * 86400000 - 1000; assert.equal((await service.reconcile()).expired, 0); assert.equal((await store.occupied()).length, 2);
+  now = start + 6 * 86400000 + 1000; assert.equal((await service.reconcile()).expired, 1); assert.deepEqual(await store.occupied(), ['302']);
   assert.equal((await store.get(unpaid.requestId)).status, 'expired'); assert.equal((await store.get(paid.requestId)).status, 'deposit'); assert.equal((await service.reconcile()).expired, 0);
+  // Заявка отпреди промяната (без holdDays) пази обещаните 14 дни + 3 гратисни.
+  const { cardholderName: c4, billingAddress: b4, ...old } = input('303'); await service.create(old); const o = await store.get(old.requestId); delete o.holdDays; delete o.reminderDay;
+  store.db.prepare('UPDATE orders SET data=? WHERE id=?').run(JSON.stringify(o), old.requestId); const created = o.createdAt * 1000;
+  now = created + 17 * 86400000 - 1000; assert.equal((await service.reconcile()).expired, 0); now = created + 17 * 86400000 + 1000; assert.equal((await service.reconcile()).expired, 1);
   const { cardholderName: c3, billingAddress: b3, ...again } = input('301'); assert.equal((await service.create(again)).status, 'requested'); store.close();
 });
 function requestSetup(start = '2026-11-02T12:00:00Z') {
@@ -145,14 +149,15 @@ function requestSetup(start = '2026-11-02T12:00:00Z') {
   const mark = async (id, status) => { const order = await store.get(id); store.db.prepare('UPDATE orders SET data=? WHERE id=?').run(JSON.stringify({ ...order, status }), id); };
   return { store, service, sent, request, mark, at: value => { now = Date.parse(value); } };
 }
-test('confirmation and day 10 reminder go out once, with bank data and both amounts', async () => {
+test('confirmation and day 2 reminder go out once, with bank data and both amounts', async () => {
   const { store, service, sent, request, at } = requestSetup(); await service.create(request('101'));
-  assert.equal(sent.length, 1); assert.match(sent[0].subject, /Ти запази мястото си/); assert.match(sent[0].text, /BG00TEST/); assert.match(sent[0].text, /750 €/); assert.match(sent[0].text, /375 €/); assert.match(sent[0].text, /ред 1, място 1/); assert.match(sent[0].text, /31\.01\.2027/); assert.match(sent[0].text, /половината сума от билета \(375 €\) или да заплатиш цялата \(750 €\)/); assert.match(sent[0].text, /Основание: Конференция, Мария Иванова/); assert.match(sent[0].text, /Грейт Уърк ООД/);
-  at('2026-11-11T12:00:00Z'); await service.reconcile(); assert.equal(sent.length, 1);
-  at('2026-11-12T13:00:00Z'); await service.reconcile(); assert.equal(sent.length, 2); assert.match(sent[1].subject, /Напомняне/);
+  assert.equal(sent.length, 1); assert.match(sent[0].subject, /Ти запази мястото си/); assert.match(sent[0].text, /BG00TEST/); assert.match(sent[0].text, /750 €/); assert.match(sent[0].text, /375 €/);  assert.match(sent[0].text, /31\.01\.2027/); assert.match(sent[0].text, /Здравей, Мария Иванова!/); assert.match(sent[0].text, /Ред 1 \| Място 1/); assert.match(sent[0].text, /50% капаро – 375 €\n\nПълно плащане – 750 €/); assert.match(sent[0].text, /3 календарни дни/); assert.match(sent[0].text, /остатъкът от 375 € трябва да бъде заплатен най-късно до 31\.01\.2027 г\./); assert.match(sent[0].text, /Екипът на Etaloncare$/); assert.doesNotMatch(sent[0].text, /\*\*/);
+  for (const bold of ['„НАУКАТА ЗА НОКТИТЕ“', 'ТВОЕТО МЯСТО:', 'ДАТА:', 'КАК ДА ПОТВЪРДИШ РЕЗЕРВАЦИЯТА СИ?', '3 календарни дни', 'най-късно до 31.01.2027 г.', 'С банков превод с тези данни:']) assert.ok(sent[0].html.includes(`<strong>${bold}</strong>`), bold); assert.match(sent[0].text, /Основание: Конференция, Мария Иванова/); assert.match(sent[0].text, /Грейт Уърк ООД/);
+  at('2026-11-04T11:00:00Z'); await service.reconcile(); assert.equal(sent.length, 1);
+  at('2026-11-04T13:00:00Z'); await service.reconcile(); assert.equal(sent.length, 2); assert.match(sent[1].subject, /Напомняне/);
   await service.reconcile(); assert.equal(sent.length, 2);
-  at('2026-11-19T11:00:00Z'); assert.equal((await service.reconcile()).expired, 0);
-  at('2026-11-20T13:00:00Z'); assert.equal((await service.reconcile()).expired, 1); assert.match(sent.at(-1).subject, /отпадна/); assert.equal((await store.occupied()).length, 0); store.close();
+  at('2026-11-08T11:00:00Z'); assert.equal((await service.reconcile()).expired, 0);
+  at('2026-11-08T13:00:00Z'); assert.equal((await service.reconcile()).expired, 1); assert.match(sent.at(-1).subject, /отпадна/); assert.equal((await store.occupied()).length, 0); store.close();
 });
 test('deposit gets capture mail, two reminders, then forfeits the seat and keeps the deposit', async () => {
   const { store, service, sent, request, mark, at } = requestSetup(); const data = request('301'); await service.create(data); sent.length = 0;
@@ -170,8 +175,8 @@ test('fully paid order keeps its seat with no reminders', async () => {
   assert.equal(sent.length, 1); assert.match(sent[0].subject, /получено/); assert.equal((await store.occupied()).length, 1); store.close();
 });
 test('late request is asked for the full amount only', async () => {
-  const { store, service, sent, request } = requestSetup('2027-01-20T12:00:00Z'); await service.create(request('303'));
-  assert.match(sent[0].text, /цялата сума 650 €/); assert.doesNotMatch(sent[0].text, /вноска/); store.close();
+  const { store, service, sent, request } = requestSetup('2027-01-29T12:00:00Z'); await service.create(request('303'));
+  assert.match(sent[0].text, /Пълно плащане – 650 €/); assert.doesNotMatch(sent[0].text, /капаро|остатъкът/); store.close();
 });
 test('mail failure keeps the reservation and retries on the next run', async () => {
   const { store, service, sent, request } = requestSetup(); const ok = service.mailer.send; service.mailer.send = async () => { throw new Error('down'); };
@@ -189,7 +194,7 @@ test('emails follow the language the form was filled in', async () => {
   const english = { ...request('101'), name: 'Maria Ivanova', lang: 'en' }, bulgarian = request('102');
   await service.create(english); await service.create(bulgarian);
   assert.match(sent[0].subject, /You have reserved your seat/); assert.match(sent[0].text, /half the ticket price \(375 €\)/); assert.match(sent[0].text, /row 1, seat 1/); assert.match(sent[0].text, /31 January 2027/); assert.doesNotMatch(sent[0].text, /[А-Яа-я]{4,}/);
-  assert.match(sent[1].subject, /Ти запази мястото си/); assert.match(sent[1].text, /ред 1, място 2/);
+  assert.match(sent[1].subject, /Ти запази мястото си/); assert.match(sent[1].text, /Ред 1 \| Място 2/);
   await mark(english.requestId, 'deposit'); at('2026-11-05T12:00:00Z'); await service.reconcile();
   assert.match(sent.at(-1).subject, /deposit has been received/); assert.match(sent.at(-1).text, /375 €/); assert.equal((await store.get(english.requestId)).lang, 'en');
   for (const key of ['firstReminder', 'secondEarly', 'secondLate', 'paid', 'expired', 'forfeited']) assert.doesNotMatch(renderEmail(key, await store.get(english.requestId), baseConfig, service.bank).text, /[А-Яа-я]{4,}/);
@@ -240,5 +245,5 @@ test('admin cancel frees the seat with no mail, and refuses unknown actions', as
   await assert.rejects(service.adminUpdate(data.requestId, 'hack', adminKey, 'a'), { status: 409 }); await assert.rejects(service.adminUpdate(randomUUID(), 'paid', adminKey, 'a'), { status: 404 });
   assert.equal((await service.adminUpdate(data.requestId, 'cancelled', adminKey, 'a')).status, 'cancelled'); assert.deepEqual(await store.occupied(), []); assert.equal(sent.length, 0);
   await service.reconcile(); assert.equal(sent.length, 0); assert.equal((await service.adminOrders(adminKey, 'a')).orders[0].status, 'cancelled');
-  const late = request('303'); at('2027-01-25T12:00:00Z'); await service.create(late); assert.deepEqual((await service.adminOrders(adminKey, 'a')).orders[0].actions, ['paid', 'cancelled']); await assert.rejects(service.adminUpdate(late.requestId, 'deposit', adminKey, 'a'), { status: 409 }); store.close();
+  const late = request('303'); at('2027-01-29T12:00:00Z'); await service.create(late); assert.deepEqual((await service.adminOrders(adminKey, 'a')).orders[0].actions, ['paid', 'cancelled']); await assert.rejects(service.adminUpdate(late.requestId, 'deposit', adminKey, 'a'), { status: 409 }); store.close();
 });
