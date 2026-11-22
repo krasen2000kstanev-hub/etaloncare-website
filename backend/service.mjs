@@ -9,7 +9,7 @@ export function seatPlan(config) {
   return seats;
 }
 export class Service {
-  constructor({ store, payment, config, mailer, bank, adminToken, adminPassword, clock = () => Date.now() }) { this.adminToken = adminToken; this.adminPassword = adminPassword; this.store = store; this.payment = payment; this.config = config; this.mailer = mailer; this.bank = bank; this.clock = clock; this.seats = seatPlan(config); }
+  constructor({ store, payment, config, mailer, bank, adminToken, adminPassword, notifyEmail, clock = () => Date.now() }) { this.adminToken = adminToken; this.adminPassword = adminPassword; this.notifyEmail = notifyEmail; this.store = store; this.payment = payment; this.config = config; this.mailer = mailer; this.bank = bank; this.clock = clock; this.seats = seatPlan(config); }
   // Заявка без картово плащане: мястото се пази requestDays дни или докато организаторът не смени статуса след превод.
   get requests() { return this.config.paymentMode === 'request'; }
   // Места, запазени от организатора: за посетителите изглеждат заети.
@@ -142,7 +142,8 @@ export class Service {
     else await this.store.mark(order, order.status, action, at);
     const updated = await this.store.get(id);
     if (updated.status !== action) throw new ApiError(409, 'Заявката междувременно е променена. Обнови страницата.');
-    // Отказът не праща имейл; при неуспех планираната задача опитва пак.
+    // Отказът не праща имейл до участника, само известие до организатора; при неуспех планираната задача опитва пак.
+    if (action === 'cancelled' && this.notifyEmail && this.mailer?.ready) await this.mailer.send({ to: this.notifyEmail, subject: `Отказ: ${order.name}, ред ${order.seatId.slice(0, -2)}, място ${Number(order.seatId.slice(-2))}`, text: `Заявката на ${order.name} (${order.email}, ${order.phone}) е отбелязана като отказ в админа. Мястото е освободено.` }).catch(error => console.error('Email failure:', error.name));
     const emailed = action === 'cancelled' ? 0 : await this.sendDue(updated).catch(error => { console.error('Email failure:', error.name); return 0; });
     return { status: updated.status, emailed: emailed > 0 };
   }
@@ -160,7 +161,8 @@ export class Service {
     if (!this.mailer?.ready || !this.bank?.iban) return 0;
     let sent = 0;
     for (const key of emailsDue(order, this.config, this.clock())) {
-      await this.mailer.send({ to: order.email, ...renderEmail(key, order, this.config, this.bank) });
+      // Организаторът получава скрито копие от всяко писмо до участник (заявка, напомняне, капаро, плащане, отпадане).
+      await this.mailer.send({ to: order.email, bcc: this.notifyEmail, ...renderEmail(key, order, this.config, this.bank) });
       await this.store.markEmail(order.id, key, Math.floor(this.clock() / 1000)); sent++;
     }
     return sent;

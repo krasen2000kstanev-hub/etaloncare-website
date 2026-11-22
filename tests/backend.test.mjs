@@ -151,8 +151,8 @@ function requestSetup(start = '2026-11-02T12:00:00Z') {
   return { store, service, sent, request, mark, at: value => { now = Date.parse(value); } };
 }
 test('confirmation and day 2 reminder go out once, with bank data and both amounts', async () => {
-  const { store, service, sent, request, at } = requestSetup(); await service.create(request('101'));
-  assert.equal(sent.length, 1); assert.match(sent[0].subject, /Ти запази мястото си/); assert.match(sent[0].text, /BG00TEST/); assert.match(sent[0].text, /750 €/); assert.match(sent[0].text, /375 €/);  assert.match(sent[0].text, /31\.01\.2027/); assert.match(sent[0].text, /Здравей, Мария Иванова!/); assert.match(sent[0].text, /Ред 1 \| Място 1/); assert.match(sent[0].text, /50% капаро – 375 €\n\nПълно плащане – 750 €/); assert.match(sent[0].text, /3 календарни дни/); assert.match(sent[0].text, /остатъкът от 375 € трябва да бъде заплатен най-късно до 31\.01\.2027 г\./); assert.match(sent[0].text, /Екипът на Etaloncare$/); assert.doesNotMatch(sent[0].text, /\*\*/);
+  const { store, service, sent, request, at } = requestSetup(); service.notifyEmail = 'boss@example.com'; await service.create(request('101'));
+  assert.equal(sent.length, 1); assert.equal(sent[0].bcc, 'boss@example.com', 'организаторът получава копие'); assert.match(sent[0].subject, /Ти запази мястото си/); assert.match(sent[0].text, /BG00TEST/); assert.match(sent[0].text, /750 €/); assert.match(sent[0].text, /375 €/);  assert.match(sent[0].text, /31\.01\.2027/); assert.match(sent[0].text, /Здравей, Мария Иванова!/); assert.match(sent[0].text, /Ред 1 \| Място 1/); assert.match(sent[0].text, /50% капаро – 375 €\n\nПълно плащане – 750 €/); assert.match(sent[0].text, /3 календарни дни/); assert.match(sent[0].text, /остатъкът от 375 € трябва да бъде заплатен най-късно до 31\.01\.2027 г\./); assert.match(sent[0].text, /Екипът на Etaloncare$/); assert.doesNotMatch(sent[0].text, /\*\*/);
   for (const bold of ['„НАУКАТА ЗА НОКТИТЕ“', 'ТВОЕТО МЯСТО:', 'ДАТА:', 'КАК ДА ПОТВЪРДИШ РЕЗЕРВАЦИЯТА СИ?', '3 календарни дни', 'най-късно до 31.01.2027 г.', 'С банков превод с тези данни:']) assert.ok(sent[0].html.includes(`<strong>${bold}</strong>`), bold); assert.match(sent[0].text, /Основание: Конференция, Мария Иванова/); assert.match(sent[0].text, /Грейт Уърк ООД/);
   at('2026-11-04T11:00:00Z'); await service.reconcile(); assert.equal(sent.length, 1);
   at('2026-11-04T13:00:00Z'); await service.reconcile(); assert.equal(sent.length, 2); assert.match(sent[1].subject, /Напомняне/);
@@ -259,7 +259,9 @@ test('admin marks deposit and payment, sends the mail and keeps the seat', async
 test('admin cancel frees the seat with no mail, and refuses unknown actions', async () => {
   const { store, service, sent, request, at } = requestSetup(); service.adminToken = adminKey; const data = request('302'); await service.create(data); sent.length = 0;
   await assert.rejects(service.adminUpdate(data.requestId, 'hack', adminKey, 'a'), { status: 409 }); await assert.rejects(service.adminUpdate(randomUUID(), 'paid', adminKey, 'a'), { status: 404 });
-  assert.equal((await service.adminUpdate(data.requestId, 'cancelled', adminKey, 'a')).status, 'cancelled'); assert.deepEqual(await store.occupied(), []); assert.equal(sent.length, 0);
+  service.notifyEmail = 'boss@example.com';
+  assert.equal((await service.adminUpdate(data.requestId, 'cancelled', adminKey, 'a')).status, 'cancelled'); assert.deepEqual(await store.occupied(), []);
+  assert.equal(sent.length, 1, 'само известие до организатора'); assert.equal(sent[0].to, 'boss@example.com'); assert.match(sent[0].subject, /Отказ: Мария Иванова, ред 3, място 2/); sent.length = 0;
   await service.reconcile(); assert.equal(sent.length, 0); assert.equal((await service.adminOrders(adminKey, 'a')).orders[0].status, 'cancelled');
   const late = request('303'); at('2027-01-29T12:00:00Z'); await service.create(late); assert.deepEqual((await service.adminOrders(adminKey, 'a')).orders[0].actions, ['paid', 'cancelled']); await assert.rejects(service.adminUpdate(late.requestId, 'deposit', adminKey, 'a'), { status: 409 }); store.close();
 });
