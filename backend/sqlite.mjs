@@ -29,6 +29,16 @@ export class SqliteStore {
       this.db.exec('COMMIT');
     } catch (error) { this.db.exec('ROLLBACK'); throw error; }
   }
+  async reclaim(order, from, to, at) {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const current = this.get(order.id), taken = this.db.prepare('SELECT 1 FROM seats WHERE id=?').get(order.seatId);
+      if (current.status !== from || taken) { this.db.exec('ROLLBACK'); return false; }
+      this.db.prepare('UPDATE orders SET data=? WHERE id=?').run(JSON.stringify({ ...current, status: to, markedAt: at }), order.id);
+      this.db.prepare('INSERT INTO seats VALUES(?,?)').run(order.seatId, order.id);
+      this.db.exec('COMMIT'); return true;
+    } catch (error) { this.db.exec('ROLLBACK'); throw error; }
+  }
   async limit(source, minute, maximum) {
     this.db.prepare('DELETE FROM limits WHERE CAST(substr(id,1,instr(id,\':\')-1) AS INTEGER) < ?').run(minute - 5);
     const row = this.db.prepare('INSERT INTO limits(id,count) VALUES(?,1) ON CONFLICT(id) DO UPDATE SET count=count+1 RETURNING count').get(`${minute}:${source}`);

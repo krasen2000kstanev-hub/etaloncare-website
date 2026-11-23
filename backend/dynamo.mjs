@@ -46,6 +46,12 @@ export class DynamoStore {
     const seat = { Delete: { TableName: this.table, Key: { pk: `SEAT#${order.seatId}` }, ConditionExpression: '#owner=:o', ExpressionAttributeNames: { '#owner': 'owner' }, ExpressionAttributeValues: { ':o': order.id } } };
     try { await this.client.send(new TransactWriteCommand({ TransactItems: [update, seat] })); } catch (e) { if (e.name !== 'TransactionCanceledException') throw e; }
   }
+  // Изтекла заявка, платена ръчно: заема мястото отново само ако е свободно.
+  async reclaim(order, from, to, at) {
+    const update = { Update: { TableName: this.table, Key: { pk: `ORDER#${order.id}` }, UpdateExpression: 'SET #status=:s, #group=:s, markedAt=:a', ConditionExpression: '#status=:from', ExpressionAttributeNames: { '#status': 'status', '#group': 'group' }, ExpressionAttributeValues: { ':s': to, ':from': from, ':a': at } } };
+    const seat = { Put: { TableName: this.table, Item: { pk: `SEAT#${order.seatId}`, seatId: order.seatId, owner: order.id }, ConditionExpression: 'attribute_not_exists(pk)' } };
+    try { await this.client.send(new TransactWriteCommand({ TransactItems: [update, seat] })); return true; } catch (e) { if (e.name !== 'TransactionCanceledException') throw e; return false; }
+  }
   async limit(source, minute, maximum) {
     try {
       await this.client.send(new UpdateCommand({ TableName: this.table, Key: { pk: `LIMIT#${minute}#${source}` }, UpdateExpression: 'SET expiresAt = :ttl ADD hits :one', ConditionExpression: 'attribute_not_exists(hits) OR hits < :max', ExpressionAttributeValues: { ':ttl': (minute + 5) * 60, ':one': 1, ':max': maximum } }));

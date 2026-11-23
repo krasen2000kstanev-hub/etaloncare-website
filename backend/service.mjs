@@ -123,6 +123,7 @@ export class Service {
   }
   adminActions(order) {
     if (order.status === 'requested') return [...(this.canTakeDeposit(order) ? ['deposit'] : []), 'paid', 'cancelled'];
+    if (order.status === 'expired') return ['paid']; // Платено ръчно след изтичане: мястото се заема отново, ако е свободно.
     return order.status === 'deposit' ? ['paid', 'cancelled'] : [];
   }
   canTakeDeposit(order) { return canSplit(order, this.config) && this.clock() <= secondDeadline(this.config); }
@@ -139,6 +140,7 @@ export class Service {
     if (!this.adminActions(order).includes(action)) throw new ApiError(409, 'Това действие вече не е възможно. Обнови страницата.');
     const at = Math.floor(this.clock() / 1000);
     if (action === 'cancelled') await this.store.release(order, order.status, 'cancelled', at);
+    else if (order.status === 'expired') { if (this.held(order.seatId) || !await this.store.reclaim(order, 'expired', action, at)) throw new ApiError(409, 'Мястото вече е заето от друг. Запиши участника на друго място.'); }
     else await this.store.mark(order, order.status, action, at);
     const updated = await this.store.get(id);
     if (updated.status !== action) throw new ApiError(409, 'Заявката междувременно е променена. Обнови страницата.');
