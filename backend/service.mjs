@@ -123,7 +123,7 @@ export class Service {
   }
   adminActions(order) {
     if (order.status === 'requested') return [...(this.canTakeDeposit(order) ? ['deposit'] : []), 'paid', 'cancelled'];
-    if (order.status === 'expired') return ['paid']; // Платено ръчно след изтичане: мястото се заема отново, ако е свободно.
+    if (order.status === 'expired') return [...(this.canTakeDeposit(order) ? ['deposit'] : []), 'paid']; // Платено ръчно след изтичане: мястото се заема отново, ако е свободно.
     return order.status === 'deposit' ? ['paid', 'cancelled'] : [];
   }
   canTakeDeposit(order) { return canSplit(order, this.config) && this.clock() <= secondDeadline(this.config); }

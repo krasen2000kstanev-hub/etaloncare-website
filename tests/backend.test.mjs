@@ -268,11 +268,18 @@ test('admin cancel frees the seat with no mail, and refuses unknown actions', as
 test('expired order paid by hand takes its seat back once, or refuses if someone took it', async () => {
   const { store, service, sent, request, at } = requestSetup(); service.adminToken = adminKey; const a = request('305'), b = request('306');
   await service.create(a); await service.create(b); at('2026-11-08T13:00:00Z'); assert.equal((await service.reconcile()).expired, 2); assert.deepEqual(await store.occupied(), []);
-  assert.deepEqual((await service.adminOrders(adminKey, 'a')).orders.map(o => o.actions), [['paid'], ['paid']]);
+  assert.deepEqual((await service.adminOrders(adminKey, 'a')).orders.map(o => o.actions), [['deposit', 'paid'], ['deposit', 'paid']]);
   const other = request('306'); await service.create(other); sent.length = 0;
   assert.deepEqual(await service.adminUpdate(a.requestId, 'paid', adminKey, 'a'), { status: 'paid', emailed: true }); assert.match(sent[0].subject, /получено/); assert.match(sent[0].text, /ред 3, място 5/);
   await assert.rejects(service.adminUpdate(a.requestId, 'paid', adminKey, 'a'), { status: 409 });
   await assert.rejects(service.adminUpdate(b.requestId, 'paid', adminKey, 'a'), { status: 409 }); assert.equal((await store.get(b.requestId)).status, 'expired');
   assert.deepEqual((await store.occupied()).sort(), ['305', '306']); assert.equal((await store.get(other.requestId)).status, 'requested');
   at('2027-03-01T12:00:00Z'); await service.reconcile(); assert.ok((await store.occupied()).includes('305')); store.close();
+});
+test('expired order with a deposit paid by hand takes its seat back and waits for the second payment', async () => {
+  const { store, service, sent, request, at } = requestSetup(); service.adminToken = adminKey; const a = request('305');
+  await service.create(a); at('2026-11-08T13:00:00Z'); await service.reconcile(); sent.length = 0;
+  assert.deepEqual(await service.adminUpdate(a.requestId, 'deposit', adminKey, 'a'), { status: 'deposit', emailed: true }); assert.match(sent[0].subject, /капарирано/); assert.deepEqual(await store.occupied(), ['305']);
+  assert.deepEqual((await service.adminOrders(adminKey, 'a')).orders[0].actions, ['paid', 'cancelled']);
+  at('2027-02-04T12:00:00Z'); assert.equal((await service.reconcile()).forfeited, 1); assert.deepEqual(await store.occupied(), []); store.close();
 });
